@@ -1,0 +1,17 @@
+# Ignore the virtual environment
+venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore IDE/editor-specific files
+.vscode/
+.idea/
+*.sublime-project
+
+# Ignore distribution/build artifacts
+dist/
+build/
+*.egg-info
+/
