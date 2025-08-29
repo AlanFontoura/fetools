@@ -11,7 +11,12 @@ class S3Importer:
         :return: polars DataFrame
         """
         try:
-            dataframe = pd.read_csv(file_path)
+            counter = 1
+            for chunk in pd.read_csv(file_path, chunksize=100_000):
+                dataframe = chunk if 'dataframe' not in locals() else pd.concat([dataframe, chunk])
+                print(f"Processed {counter*100_000} rows...")
+                counter += 1
+            print(f"Total rows processed: {len(dataframe)}")
         except FileNotFoundError as e:
             raise FileNotFoundError(f"File not found: {file_path}")
         return pl.from_pandas(dataframe)
