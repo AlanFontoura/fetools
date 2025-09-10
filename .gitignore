@@ -15,3 +15,8 @@ dist/
 build/
 *.egg-info
 /
+
+# Ignore outputs and logs
+*.log
+output/
+logs/
