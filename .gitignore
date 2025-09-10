@@ -18,5 +18,5 @@ build/
 
 # Ignore outputs and logs
 *.log
-output/
+outputs/
 logs/
