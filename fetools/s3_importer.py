@@ -3,6 +3,7 @@
 import pandas as pd
 import polars as pl
 
+
 class S3Importer:
     def import_data(self, file_path):
         """
@@ -13,7 +14,11 @@ class S3Importer:
         try:
             counter = 1
             for chunk in pd.read_csv(file_path, chunksize=100_000):
-                dataframe = chunk if 'dataframe' not in locals() else pd.concat([dataframe, chunk])
+                dataframe = (
+                    chunk
+                    if "dataframe" not in locals()
+                    else pd.concat([dataframe, chunk])
+                )
                 print(f"Processed {counter*100_000} rows...")
                 counter += 1
             print(f"Total rows processed: {len(dataframe)}")

@@ -3,6 +3,7 @@
 import pandas as pd
 import polars as pl
 
+
 class LocalImporter:
     def import_data(self, file_path, file_type="csv"):
         """
@@ -15,6 +16,6 @@ class LocalImporter:
             data = pd.read_pickle(file_path)
             return pl.from_pandas(data)
         elif file_type == "csv":
-            return pl.read_csv(file_path)            
+            return pl.read_csv(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
