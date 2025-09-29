@@ -176,11 +176,9 @@ class VnFV52:
         return inputs
 
     def add_zero_entries(self, df: pl.DataFrame) -> pl.DataFrame:
-        max_dates = df.group_by(
-            ["Account ID", "Currency Split Type", "Security ID"]
-        ).agg(pl.col("Date").max().alias("Date"))
-        max_dates = max_dates.filter(pl.col("Date") < self.max_date)
-        max_dates = max_dates.with_columns(
+        all_dates = df.select(["Account ID", "Currency Split Type", "Security ID", "Date"]).unique()
+        all_dates = all_dates.filter(pl.col("Date") < self.max_date)
+        all_dates = all_dates.with_columns(
             (
                 pl.col("Date")
                 .str.strptime(pl.Date, self.date_format)
@@ -190,7 +188,8 @@ class VnFV52:
             ).alias("Date")
         )
         df = (
-            pl.concat([df, max_dates], how="diagonal")
+            pl.concat([df, all_dates], how="diagonal")
+            .fill_null(0)
             .group_by(["Date", "Account ID", "Security ID", "Currency Split Type"])
             .agg(pl.all().sum())
             .sort(by=["Account ID", "Date", "Currency Split Type", "Security ID"])
