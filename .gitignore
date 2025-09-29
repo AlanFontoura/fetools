@@ -20,3 +20,7 @@ build/
 *.log
 outputs/
 logs/
+
+# Ignore personal Jupiter Notebook files
+*.ipynb
+.ipynb_checkpoints/
