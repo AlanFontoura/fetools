@@ -177,7 +177,9 @@ class VnFV52:
         return inputs
 
     def add_zero_entries(self, df: pl.DataFrame) -> pl.DataFrame:
-        all_dates = df.select(["Account ID", "Currency Split Type", "Security ID", "Date"]).unique()
+        all_dates = df.select(
+            ["Account ID", "Currency Split Type", "Security ID", "Date"]
+        ).unique()
         all_dates = all_dates.filter(pl.col("Date") < self.max_date)
         all_dates = all_dates.with_columns(
             (
@@ -222,12 +224,15 @@ class VnFV52:
     def adjust_last_date(self, df: pl.DataFrame) -> pl.DataFrame:
         df = df.with_columns(
             pl.when(pl.col("Date") == self.max_date)
-            .then((pl.col("Date").str.to_date().cast(pl.Date) - pl.duration(days=1)).dt.strftime("%Y-%m-%d"))
+            .then(
+                (
+                    pl.col("Date").str.to_date().cast(pl.Date) - pl.duration(days=1)
+                ).dt.strftime("%Y-%m-%d")
+            )
             .otherwise(pl.col("Date"))
             .alias("Date")
-            )
+        )
         return df
-
 
     @property
     def portfolios(self):
