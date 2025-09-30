@@ -330,6 +330,7 @@ class VnFV52:
             pl.lit(0).alias("DateFinTransfAccrVal"),
             pl.lit(0).alias("DateOprTransfAccrVal"),
         )
+        book_values = self.adjust_last_date(book_values)
         return book_values
 
     def create_output_folders(self):
