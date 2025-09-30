@@ -74,6 +74,8 @@ class PreProcessVnFData:
 
     def adjust_units(self, df: pl.DataFrame) -> pl.DataFrame:
         security_data = self.security_type_mapping()
+        if 'SecurityID' not in df.columns:
+            df = df.with_columns(pl.lit('legacy_instrument_USD').alias("SecurityID"))
         df = df.join(security_data, on="SecurityID", how="left")
         adjusted_df = df.with_columns(
             pl.when(pl.col("SecurityType") == "Cashlike")
@@ -137,6 +139,6 @@ class PreProcessVnFData:
 
 if __name__ == "__main__":
     k = PreProcessVnFData(
-        file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-09-22/"
+        file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-09-30/"
     )
     k.pre_process()

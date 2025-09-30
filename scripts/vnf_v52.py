@@ -2,6 +2,7 @@ import pandas as pd
 import polars as pl
 import importlib
 from pathlib import Path
+from datetime import datetime
 
 
 class VnFV52:
@@ -13,8 +14,9 @@ class VnFV52:
     """
 
     def __init__(self, client: str):
+        today = datetime.today().strftime("%Y-%m-%d")
         self.client = client
-        self.output_path = f"./outputs/vnf_v52/{client}"
+        self.output_path = f"./outputs/vnf_v52/{client}/{today}"
         self._client_data = None
         self.date_format = "%Y-%m-%d"
 
@@ -32,7 +34,7 @@ class VnFV52:
                 sys.exit(1)
 
             client_preprocessor = preprocessor.PreProcessVnFData(
-                file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-09-22/"
+                file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-09-30/"
             )
             self._client_data = client_preprocessor.pre_process()
 
