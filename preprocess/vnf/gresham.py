@@ -74,8 +74,8 @@ class PreProcessVnFData:
 
     def adjust_units(self, df: pl.DataFrame) -> pl.DataFrame:
         security_data = self.security_type_mapping()
-        if 'SecurityID' not in df.columns:
-            df = df.with_columns(pl.lit('legacy_instrument_USD').alias("SecurityID"))
+        if "SecurityID" not in df.columns:
+            df = df.with_columns(pl.lit("legacy_instrument_USD").alias("SecurityID"))
         df = df.join(security_data, on="SecurityID", how="left")
         adjusted_df = df.with_columns(
             pl.when(pl.col("SecurityType") == "Cashlike")
@@ -115,10 +115,12 @@ class PreProcessVnFData:
                 "Wd- exus",
             ]
         )
-        transformed_df = transformed_df.rename({
-            "AccountCode": "Account ID",
-            "SecurityID": "Security ID",
-        })
+        transformed_df = transformed_df.rename(
+            {
+                "AccountCode": "Account ID",
+                "SecurityID": "Security ID",
+            }
+        )
         return transformed_df.sort(
             by=["Household ID", "Account ID", "Date", "Security ID"]
         )

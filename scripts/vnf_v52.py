@@ -29,7 +29,7 @@ class VnFV52:
                 )
             except ModuleNotFoundError:
                 print(
-                    f"❌ Preprocessor for client '{client_name}' not found. Check the 'preprocess/' folder."
+                    f"❌ Preprocessor for client '{client_name}' not found. Check the 'preprocess/vnf' folder."
                 )
                 sys.exit(1)
 
