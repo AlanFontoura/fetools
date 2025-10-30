@@ -34,7 +34,7 @@ class VnFV52:
                 sys.exit(1)
 
             client_preprocessor = preprocessor.PreProcessVnFData(
-                file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-09-30/"
+                file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-10-10/SecurityLevel/"
             )
             self._client_data = client_preprocessor.pre_process()
 

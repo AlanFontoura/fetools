@@ -130,7 +130,7 @@ class PreProcessVnFData:
         clean_df = df.filter(~pl.all_horizontal(pl.col(numeric_cols) == 0))
         return clean_df
 
-    def pre_process(self) -> pd.DataFrame:
+    def pre_process(self) -> pl.DataFrame:
         data = self.get_vnf_data()
         data = self.adjust_units(data)
         data = self.filter_data(data)
@@ -141,6 +141,6 @@ class PreProcessVnFData:
 
 if __name__ == "__main__":
     k = PreProcessVnFData(
-        file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-09-30/"
+        file_path="s3://d1g1t-production-file-transfer-us-east-1/gresham/for_d1g1t/PnL/2025-10-10/SecurityLevel/"
     )
-    k.pre_process()
+    k.pre_process().write_csv('test.csv')
