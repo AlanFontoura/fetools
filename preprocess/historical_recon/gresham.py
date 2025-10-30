@@ -1,21 +1,55 @@
 import pandas as pd
 import awswrangler as wr
+from fetools.get_eom_data import GetEoMData
 from constants.constants import FILE_LOCATIONS
 
 
-class PreProcessHistoricalData:
-    def __init__(self, date):
-        self.data_importer = DataImporter()
-        self.file_path = f'{FILE_LOCATIONS["gresham"]["position_files"]}{date}/'
+class GetTrackingData:
+    def __init__(self, period="monthly", env="production", output_file_name="tracking_data"):
+        self.file_path = f'{FILE_LOCATIONS["gresham"]["exports_folder"]}/{env}-gresham-{period}-tracking.csv'
+        self.output_file_name = output_file_name
 
-    @property
-    def historical_data(self) -> pd.DataFrame:
-        if self._historical_data is not None:
-            return self._historical_data
-        self._historical_data = self.data_importer.import_data(
-            source="s3", file_path=self.file_path
+    def tracking_data(self) -> pd.DataFrame:
+        data_filterer = GetEoMData(
+            file_path=self.file_path, date_column="date", chunk_size=100_000
         )
-        return self._historical_data
+        tracking_data = data_filterer.get_eom_data()
+        return tracking_data
+
+    def format_tracking_data(self, tracking_data: pd.DataFrame) -> pd.DataFrame:
+        tracking_data = tracking_data.rename(
+            columns={
+                "date": "Date",
+                "account": "Account ID",
+                "instrument": "Security ID",
+                "units": "Units",
+                "price": "Price",
+                "mv": "Market Value",
+            }
+        )
+        tracking_data = tracking_data[tracking_data["is_dead"] != "t"]
+        tracking_data.loc[tracking_data["Security ID"] == "USD", "Market Value"] = (
+            tracking_data.loc[tracking_data["Security ID"] == "USD", "Units"]
+        )
+        cols = ["Date", "Account ID", "Security ID", "Units", "Price", "Market Value"]
+        tracking_data = tracking_data[cols]
+        tracking_data = (
+            tracking_data.groupby(["Date", "Account ID", "Security ID"])
+            .sum()
+            .reset_index(drop=False)
+        )
+        tracking_data = tracking_data.sort_values(
+            by=["Account ID", "Security ID", "Date"]
+        )
+        return tracking_data
+    
+    def main(self) -> None:
+        tracking_data = self.tracking_data()
+        formatted_tracking_data = self.format_tracking_data(tracking_data)
+        formatted_tracking_data.to_pickle(
+            f"outputs/historical_position_files/gresham/{self.output_file_name}.pkl"
+        )
+        print("Gresham tracking data processed and saved.")
 
 
 class GetPositionFiles:
@@ -30,14 +64,10 @@ class GetPositionFiles:
         return files
 
     def get_file(self, file_path, chunk_size=100_000) -> pd.DataFrame:
-        eom_dates = (
-            pd.date_range(start="1970-01-31", end="2099-12-31", freq="ME")
-            .strftime("%Y-%m-%d")
-            .tolist()
+        file_filterer = GetEoMData(
+            file_path=file_path, date_column="Date", chunk_size=chunk_size
         )
-
-        file_name = file_path.split("/")[-1]
-
+        positions = file_filterer.get_eom_data()
         cols = [
             "Date",
             "AccountCode",
@@ -49,27 +79,12 @@ class GetPositionFiles:
             "MV_Local",
         ]
 
-        chunks = []
-        counter = 1
-        for chunk in pd.read_csv(file_path, chunksize=chunk_size):
-            if chunk.shape[0] == chunk_size:
-                print(f"Processed {counter*chunk_size:,} rows of file {file_name}...")
-            else:
-                print(
-                    f"Processed total of {((counter-1)*chunk_size)+chunk.shape[0]:,} rows of file {file_name}."
-                )
-            counter += 1
-            chunk = chunk[chunk["Date"].isin(eom_dates)]
-            chunk = chunk[cols]
-            chunks.append(chunk)
+        return positions[cols]
 
-        positions = pd.concat(chunks, ignore_index=True)
-        return positions
-
-    def get_all_positions(self) -> pd.DataFrame:
+    def get_all_positions(self, chunk_size=100_000) -> pd.DataFrame:
         all_positions = []
         for file in self.position_files:
-            positions = self.get_file(file)
+            positions = self.get_file(file, chunk_size=chunk_size)
             all_positions.append(positions)
         all_positions_df = pd.concat(all_positions, ignore_index=True)
         return all_positions_df
