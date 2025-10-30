@@ -8,7 +8,7 @@ class GetTrackingData:
     def __init__(
         self, period="monthly", env="production", output_file_name="tracking_data"
     ):
-        self.file_path = f'{FILE_LOCATIONS["gresham"]["exports_folder"]}/{env}-gresham-{period}-tracking.csv'
+        self.file_path = f'{FILE_LOCATIONS["gresham"]["exports_folder"]}{env}-gresham-{period}-tracking.csv'
         self.output_file_name = output_file_name
 
     def tracking_data(self) -> pd.DataFrame:
