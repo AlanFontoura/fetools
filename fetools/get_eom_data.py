@@ -6,6 +6,7 @@ class GetEoMData:
     def __init__(self, file_path, date_column="Date", chunk_size=100_000):
         self.file_path = file_path
         self.date_column = date_column
+        self.chunk_size = chunk_size
         self._eom_dates = None
 
     @property
@@ -25,14 +26,14 @@ class GetEoMData:
         chunks = []
         chunk_size = 100_000
 
-        for chunk in pd.read_csv(self.file_path, chunksize=chunk_size):
+        for chunk in pd.read_csv(self.file_path, chunksize=self.chunk_size):
             if chunk.shape[0] == chunk_size:
                 print(
-                    f"Processed {counter*chunk_size:,} rows of file {self.file_name}..."
+                    f"Processed {counter*chunk_size:,} rows of file {file_name}..."
                 )
             else:
                 print(
-                    f"Processed total of {((counter-1)*chunk_size)+chunk.shape[0]:,} rows of file {self.file_path}."
+                    f"Processed total of {((counter-1)*chunk_size)+chunk.shape[0]:,} rows of file {file_name}."
                 )
             counter += 1
             chunk = chunk[chunk[self.date_column].isin(self.eom_dates)]
