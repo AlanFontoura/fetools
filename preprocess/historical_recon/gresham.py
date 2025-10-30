@@ -5,7 +5,9 @@ from constants.constants import FILE_LOCATIONS
 
 
 class GetTrackingData:
-    def __init__(self, period="monthly", env="production", output_file_name="tracking_data"):
+    def __init__(
+        self, period="monthly", env="production", output_file_name="tracking_data"
+    ):
         self.file_path = f'{FILE_LOCATIONS["gresham"]["exports_folder"]}/{env}-gresham-{period}-tracking.csv'
         self.output_file_name = output_file_name
 
@@ -42,7 +44,7 @@ class GetTrackingData:
             by=["Account ID", "Security ID", "Date"]
         )
         return tracking_data
-    
+
     def main(self) -> None:
         tracking_data = self.tracking_data()
         formatted_tracking_data = self.format_tracking_data(tracking_data)

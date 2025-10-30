@@ -6,7 +6,6 @@ class GetEoMData:
     def __init__(self, file_path, date_column="Date", chunk_size=100_000):
         self.file_path = file_path
         self.date_column = date_column
-        self._historical_data = None
         self._eom_dates = None
 
     @property
