@@ -28,9 +28,7 @@ class GetEoMData:
 
         for chunk in pd.read_csv(self.file_path, chunksize=self.chunk_size):
             if chunk.shape[0] == chunk_size:
-                print(
-                    f"Processed {counter*chunk_size:,} rows of file {file_name}..."
-                )
+                print(f"Processed {counter*chunk_size:,} rows of file {file_name}...")
             else:
                 print(
                     f"Processed total of {((counter-1)*chunk_size)+chunk.shape[0]:,} rows of file {file_name}."
