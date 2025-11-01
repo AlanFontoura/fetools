@@ -1,6 +1,6 @@
 import pandas as pd
 import awswrangler as wr
-from fetools.get_eom_data import GetEoMData
+from tools.get_eom_data import GetEoMData
 from constants.constants import FILE_LOCATIONS
 
 

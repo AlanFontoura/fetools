@@ -1,7 +1,7 @@
 import pandas as pd
 import polars as pl
 import awswrangler as wr
-from fetools.importer import DataImporter
+from tools.importer import DataImporter
 
 
 class PreProcessVnFData:
