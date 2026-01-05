@@ -25,3 +25,36 @@ The main goal of this repo is to share generic tools with the Financial Engineer
 - The tools are designed in a package (auto-installed by the container) named `fetools`. All required dependencies are already installed as well.
 - Inside a python terminal, you can either use `import fetools as fe` or use a single tool, like `from fetools.scripts.vnf import VnFFileGenerator`
 - Alternatively, you can use the tools from the command line interface, like `python src/fetools/scripts/vnf/vnf_v52.py --params here`
+
+
+# FE Tools
+
+**Shared financial engineering tools for the d1g1t Financial Engineering team.**
+
+## Quick Start (2 minutes)
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac)
+2. Install [VS Code](https://code.visualstudio.com/)
+3. Install [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+4. `git clone <repo> && cd fe-tools && code .`
+5. **VS Code**: `Ctrl+Shift+P` → "Dev Containers: Reopen in Container" → **Click OK**
+6. **Docker runs in background automatically**
+
+✅ **Python 3.12 + fetools + AWS deps pre-installed**
+
+## AWS Access (Daily 12hr Token)
+
+1. Browser: **Google Apps** → **d1g1t-aws-identity-center** → **d1g1t-prod** → **Access keys**
+2. **macOS/Linux tab** → **Option 1** → **Copy** environment variables
+3. **Container terminal** (venv auto-activated): **Paste**
+4. ✅ **S3 access works instantly** (`pd.read_csv("s3://bucket/file.csv")`)
+
+**No restart needed**—creds active for 12 hours.
+
+## Using fetools
+
+**Python** (IPython/VS Code/Jupyter):
+```python
+import fetools as fe
+from fetools.scripts.vnf import VnFFileGenerator
+from fetools.preprocess.gresham import PreProcessVnFData
