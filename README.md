@@ -58,7 +58,11 @@ python -m fetools.scripts.vnf.vnf_v52 --params here
 ## Standards
 
 ✅ Black formatting (88 chars)
-✅ mypy type checking  
+
+✅ mypy type checking
+
 ✅ pytest tests/ folder ready
+
 ✅ Changes live instantly (editable install)
+
 ✅ GitHub Codespaces compatible
