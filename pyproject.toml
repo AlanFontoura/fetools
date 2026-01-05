@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fetools"
+dynamic = ["version"]
+description = "FE Tools: general financial engineering tools for our daily routines"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.2",
+    "awswrangler>=2.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "black>=24.8",
+    "mypy>=1.11",
+    "jupyterlab>=4.2",
+    "ipykernel",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = [
+    "preprocess",
+    "scripts",
+    "tools"
+]
+
+[tool.black]
+line-length = 78
+target-version = ["py312"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+disallow_untyped_defs = false
+

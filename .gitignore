@@ -17,7 +17,7 @@ build/
 
 # Ignore outputs and logs
 *.log
-outputs/
+data/outputs/
 logs/
 
 # Ignore personal Jupiter Notebook files
