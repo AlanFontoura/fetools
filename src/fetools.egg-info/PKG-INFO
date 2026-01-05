@@ -14,3 +14,15 @@ Requires-Dist: mypy>=1.11; extra == "dev"
 
 # fetools
 FE tools
+
+The main goal of this repo is to share generic tools with the Financial Engineering team.
+
+## Quick Start
+
+To use this repo, you have to:
+1. Download and install Docker Desktop - either Windows or Mac versions will work
+2. Download and install VS Code - same as above
+3. Install and enable the Dev Containers extension to VS Code
+4. Clone the repo to your local machine
+5. Open Docker. Just leave it running in background
+6. Open it in VS Code. When asked to 'Reopen in container', click OK
