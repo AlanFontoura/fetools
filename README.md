@@ -13,6 +13,7 @@
 7. **Docker runs in background automatically**
 
 ✅ **Python 3.12 + fetools + AWS deps pre-installed**
+**Dependencies: awswrangler, pandas, s3fs**
 
 ## AWS Access (Daily 12hr Token)
 
@@ -41,3 +42,23 @@ from fetools.preprocess.gresham import PreProcessVnFData
 ```
 python -m fetools.scripts.vnf.vnf_v52 --params here
 ```
+
+## Scripts & Tools
+[Add tool descriptions here]
+
+## Troubleshooting
+
+| Issue                     | Fix                                             |
+| ------------------------- | ----------------------------------------------- |
+| "No module named fetools" | Container terminal: pip install -e .[dev]       |
+| AWS "NoCredentialsError"  | Copy/paste daily token from AWS Identity Center |
+| Slow first container      | Normal (~2min), cached after                    |
+| Docker not running        | Start Docker Desktop                            |
+
+## Standards
+
+✅ Black formatting (88 chars)
+✅ mypy type checking  
+✅ pytest tests/ folder ready
+✅ Changes live instantly (editable install)
+✅ GitHub Codespaces compatible
