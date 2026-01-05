@@ -29,5 +29,5 @@
     }
   },
   "forwardPorts": [8000, 8888],
-  "postStartCommand": ". .venv/bin/activate && pip install -e .[dev]"
+  "postStartCommand": ". .venv/bin/activate"
 }
