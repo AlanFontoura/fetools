@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fetools"
-dynamic = ["version"]
+version = "0.1.0"
 description = "FE Tools: general financial engineering tools for our daily routines"
 readme = "README.md"
 requires-python = ">=3.12"
