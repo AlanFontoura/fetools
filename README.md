@@ -50,7 +50,7 @@ python -m fetools.scripts.vnf.vnf_v52 --params here
 
 | Issue                     | Fix                                             |
 | ------------------------- | ----------------------------------------------- |
-| "No module named fetools" | Container terminal: pip install -e .[dev]       |
+| "No module named fetools" | Container terminal: `pip install -e .[dev]`     |
 | AWS "NoCredentialsError"  | Copy/paste daily token from AWS Identity Center |
 | Slow first container      | Normal (~2min), cached after                    |
 | Docker not running        | Start Docker Desktop                            |
