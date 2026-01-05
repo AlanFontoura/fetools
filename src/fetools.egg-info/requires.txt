@@ -1,9 +1,8 @@
 pandas>=2.2
 awswrangler>=2.20
+fsspec>=2024.9
 
 [dev]
 pytest>=8.0
 black>=24.8
 mypy>=1.11
-jupyterlab>=4.2
-ipykernel
