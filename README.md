@@ -1,5 +1,4 @@
-# fetools
-FE tools
+# FE Tools
 
 The main goal of this repo is to share generic tools with the Financial Engineering team.
 
@@ -20,3 +19,9 @@ The main goal of this repo is to share generic tools with the Financial Engineer
 4. Under the tab **macOS and Linux** (even if you are on Windows), go to the first box, *Option 1: Set AWS environment variables* and click on the *Copy* button on its right
 5. Paste it on your shell **after** the *venv* is automatically activated
 6. Now you can upload and download data directly from AWS (for example, using `pd.read_csv("s3://bucket/file.csv")`)
+
+## fetools
+
+- The tools are designed in a package (auto-installed by the container) named `fetools`. All required dependencies are already installed as well.
+- Inside a python terminal, you can either use `import fetools as fe` or use a single tool, like `from fetools.scripts.vnf import VnFFileGenerator`
+- Alternatively, you can use the tools from the command line interface, like `python src/fetools/scripts/vnf/vnf_v52.py --params here`
