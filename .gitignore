@@ -1,25 +1,34 @@
-# Ignore the virtual environment
-venv/
-
-# Ignore Python cache files
+# Bytecode / cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
-# Ignore IDE/editor-specific files
-.vscode/
-.idea/
-*.sublime-project
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-# Ignore distribution/build artifacts
-dist/
-build/
-*.egg-info
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.coverage.*
 
-# Ignore outputs and logs
-*.log
-data/outputs/
-logs/
+# Dev container / editor
+.vscode/settings.json
+.vscode/launch.json
+*.code-workspace
 
-# Ignore personal Jupiter Notebook files
-*.ipynb
-.ipynb_checkpoints/
+# Data CONTENTS only (keep empty folders via .gitkeep)
+data/inputs/*
+!data/inputs/.gitkeep
+data/outputs/*
+!data/outputs/.gitkeep
+
+# OS generated
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db

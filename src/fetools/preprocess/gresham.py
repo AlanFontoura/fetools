@@ -1,7 +1,9 @@
 import pandas as pd
-import polars as pl
+
+# import polars as pl
 import awswrangler as wr
-from tools.importer import DataImporter
+
+# from tools.importer import DataImporter
 
 
 class PreProcessVnFData:
@@ -16,14 +18,18 @@ class PreProcessVnFData:
         self.data_importer = DataImporter()
         self.file_path = file_path
         self.usd_instrument = "BC36B21F-D673-492F-8D1D-30956550D237"
-        self.custodian_data = "s3://d1g1t-custodian-data-us-east-1/apx/gresham"
+        self.custodian_data = (
+            "s3://d1g1t-custodian-data-us-east-1/apx/gresham"
+        )
 
     def get_vnf_data(self) -> pl.DataFrame:
         if self.file_path.startswith("s3://"):
             data = wr.s3.read_csv(self.file_path)
             return pl.from_pandas(data)
 
-        data = self.data_importer.import_data(source="csv", file_path=self.file_path)
+        data = self.data_importer.import_data(
+            source="csv", file_path=self.file_path
+        )
         return pl.from_pandas(data)
 
     @property
@@ -33,10 +39,25 @@ class PreProcessVnFData:
 
     def security_type_mapping(self) -> pl.DataFrame:
         security_data = self.get_security_data()
-        pe_likes = ["en", "hf", "hp", "lp", "oa", "pl", "pp", "zp", "pe", "rp"]
+        pe_likes = [
+            "en",
+            "hf",
+            "hp",
+            "lp",
+            "oa",
+            "pl",
+            "pp",
+            "zp",
+            "pe",
+            "rp",
+        ]
         security_data = security_data.with_columns(
             (
-                pl.when(pl.col("SecurityTypeCode").str.to_lowercase().is_in(pe_likes))
+                pl.when(
+                    pl.col("SecurityTypeCode")
+                    .str.to_lowercase()
+                    .is_in(pe_likes)
+                )
                 .then(pl.lit("Non Marketable"))
                 .when(pl.col("SecurityTypeCode").str.to_lowercase() == "ca")
                 .then(pl.lit("Cashlike"))
@@ -46,9 +67,15 @@ class PreProcessVnFData:
         return security_data
 
     def get_security_data(self) -> pl.DataFrame:
-        file_path = f"{self.custodian_data}/{self.last_business_day}/Security.csv"
-        security_data = self.data_importer.import_data(source="s3", file_path=file_path)
-        security_data = security_data.select(["SecurityID", "SecurityTypeCode"])
+        file_path = (
+            f"{self.custodian_data}/{self.last_business_day}/Security.csv"
+        )
+        security_data = self.data_importer.import_data(
+            source="s3", file_path=file_path
+        )
+        security_data = security_data.select(
+            ["SecurityID", "SecurityTypeCode"]
+        )
         return security_data
 
     def filter_data(self, df: pl.DataFrame) -> pl.DataFrame:
@@ -75,7 +102,9 @@ class PreProcessVnFData:
     def adjust_units(self, df: pl.DataFrame) -> pl.DataFrame:
         security_data = self.security_type_mapping()
         if "SecurityID" not in df.columns:
-            df = df.with_columns(pl.lit("legacy_instrument_USD").alias("SecurityID"))
+            df = df.with_columns(
+                pl.lit("legacy_instrument_USD").alias("SecurityID")
+            )
         df = df.join(security_data, on="SecurityID", how="left")
         adjusted_df = df.with_columns(
             pl.when(pl.col("SecurityType") == "Cashlike")
@@ -91,16 +120,23 @@ class PreProcessVnFData:
 
     def transform_data(self, df: pl.DataFrame) -> pl.DataFrame:
         transformed_df = df.with_columns(
-            pl.col("SecurityID").str.replace_all(rf"^{self.usd_instrument}$", "USD"),
-            (pl.col("Total_By") - pl.col("Total_Sl")).alias("DateCashFrTrades"),
+            pl.col("SecurityID").str.replace_all(
+                rf"^{self.usd_instrument}$", "USD"
+            ),
+            (pl.col("Total_By") - pl.col("Total_Sl")).alias(
+                "DateCashFrTrades"
+            ),
             (pl.col("Total_Li") - pl.col("Total_Lo")).alias("FinTransfer"),
             (pl.col("Total_Li")).alias("FinTransferIn"),
             (pl.col("Total_Ti") - pl.col("Total_To")).alias("OprTransfer"),
             (pl.col("Dp- epus") - pl.col("Wd- epus")).alias("DateFees"),
             (pl.col("Dp- exus") - pl.col("Wd- exus")).alias("DateExpenses"),
-            (pl.col("AccountCode").str.split("-").list.head(2).list.join("-")).alias(
-                "Household ID"
-            ),
+            (
+                pl.col("AccountCode")
+                .str.split("-")
+                .list.head(2)
+                .list.join("-")
+            ).alias("Household ID"),
         ).drop(
             [
                 "Total_By",

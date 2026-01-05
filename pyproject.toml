@@ -25,9 +25,10 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 include = [
-    "preprocess",
-    "scripts",
-    "tools"
+    "fetools",
+    "fetools.preprocess",
+    "fetools.scripts",
+    "fetools.tools"
 ]
 
 [tool.black]

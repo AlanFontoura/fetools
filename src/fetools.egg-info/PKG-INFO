@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: fetools
+Version: 0.1.0
+Summary: FE Tools: general financial engineering tools for our daily routines
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=2.2
+Requires-Dist: awswrangler>=2.20
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: black>=24.8; extra == "dev"
+Requires-Dist: mypy>=1.11; extra == "dev"
+Requires-Dist: jupyterlab>=4.2; extra == "dev"
+Requires-Dist: ipykernel; extra == "dev"
+
+# fetools
+FE tools
