@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-# SMA
+# region SMA
 class SMADataGenerator:
     def __init__(self, sma_df: pd.DataFrame):
         self.sma_df = sma_df
@@ -183,6 +183,8 @@ class SMADataGenerator:
             columns=["Account ID"]
         )
 
+
+# endregion
 
 # Partial Ownership
 
