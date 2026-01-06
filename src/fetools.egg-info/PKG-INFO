@@ -7,22 +7,77 @@ Description-Content-Type: text/markdown
 Requires-Dist: pandas>=2.2
 Requires-Dist: awswrangler>=2.20
 Requires-Dist: fsspec>=2024.9
+Requires-Dist: tomlkit>=0.11
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 Requires-Dist: black>=24.8; extra == "dev"
 Requires-Dist: mypy>=1.11; extra == "dev"
 
-# fetools
-FE tools
+# FE Tools
 
-The main goal of this repo is to share generic tools with the Financial Engineering team.
+**Shared financial engineering tools for the d1g1t FE team.**
 
-## Quick Start
+## Quick Start (2 minutes)
 
-To use this repo, you have to:
-1. Download and install Docker Desktop - either Windows or Mac versions will work
-2. Download and install VS Code - same as above
-3. Install and enable the Dev Containers extension to VS Code
-4. Clone the repo to your local machine
-5. Open Docker. Just leave it running in background
-6. Open it in VS Code. When asked to 'Reopen in container', click OK
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac)
+2. Install [VS Code](https://code.visualstudio.com/)
+3. Install [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+4. Clone repo
+5. `cd fetools && code .`
+6. **VS Code**: `Ctrl+Shift+P` → "Dev Containers: Reopen in Container" → **Click OK**
+7. **Docker runs in background automatically**
+
+✅ **Python 3.12 + fetools + AWS deps pre-installed**
+**Dependencies: awswrangler, pandas, s3fs**
+
+## AWS Access (Daily 12hr Token)
+
+1. Browser: **Google Apps** → **d1g1t-aws-identity-center** → **d1g1t-prod** → **Access keys**
+2. **macOS/Linux tab** → **Option 1** → **Copy** environment variables
+3. **Container terminal** (venv auto-activated): **Paste**
+4. ✅ **S3 access works instantly** (e.g., `pd.read_csv("s3://bucket/file.csv")`)
+
+**No restart needed**—creds active for 12 hours.
+
+## Using fetools
+
+**Python** (IPython/VS Code/Jupyter):
+1. As a package
+```python
+import fetools as fe
+```
+
+2. As single tools
+```python
+from fetools.scripts.vnf import VnFFileGenerator
+from fetools.preprocess.gresham import PreProcessVnFData
+```
+
+3. From command line
+```
+python -m fetools.scripts.vnf.vnf_v52 --params here
+```
+
+## Scripts & Tools
+[Add tool descriptions here]
+
+## Troubleshooting
+
+| Issue                     | Fix                                             |
+| ------------------------- | ----------------------------------------------- |
+| "No module named fetools" | Container terminal: `pip install -e .[dev]`     |
+| AWS "NoCredentialsError"  | Copy/paste daily token from AWS Identity Center |
+| Slow first container      | Normal (~2min), cached after                    |
+| Docker not running        | Start Docker Desktop                            |
+
+## Standards
+
+✅ Black formatting (88 chars)
+
+✅ mypy type checking
+
+✅ pytest tests/ folder ready
+
+✅ Changes live instantly (editable install)
+
+✅ GitHub Codespaces compatible
