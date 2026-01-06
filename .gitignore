@@ -21,10 +21,7 @@ htmlcov/
 *.code-workspace
 
 # Data CONTENTS only (keep empty folders via .gitkeep)
-data/inputs/*
-!data/inputs/.gitkeep
-data/outputs/*
-!data/outputs/.gitkeep
+data/
 
 # OS generated
 .DS_Store
