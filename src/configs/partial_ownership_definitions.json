@@ -1,0 +1,253 @@
+{
+    "funds": {
+        "FILENAME": "funds.csv",
+        "OUTPUT_PATH": "funds/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Firm Provided Key",
+                "PREFIX": null,
+                "SUFFIX": "_fund",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Name",
+                "PREFIX": null,
+                "SUFFIX": " - Fund",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Client ID",
+                "COL_NAME": "Fund Manager Firm Provided Key",
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Type",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "SMA"
+            }
+        ]
+    },
+    "class_series": {
+        "FILENAME": "class_series.csv",
+        "OUTPUT_PATH": "class_series/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Firm Provided Key",
+                "PREFIX": null,
+                "SUFFIX": "_class_series",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Name",
+                "PREFIX": null,
+                "SUFFIX": " - Class Series",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Fund Firm Provided Key",
+                "PREFIX": null,
+                "SUFFIX": "_fund",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Weight",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": 1.0
+            }
+        ]
+    },
+    "households": {
+        "FILENAME": "households.csv",
+        "OUTPUT_PATH": "households/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Household ID",
+                "PREFIX": null,
+                "SUFFIX": "_household",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Household Name",
+                "PREFIX": null,
+                "SUFFIX": " - Household",
+                "VALUE": null
+            }
+        ]
+    },
+    "clients": {
+        "FILENAME": "clients.csv",
+        "OUTPUT_PATH": "clients/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "ClientID",
+                "PREFIX": null,
+                "SUFFIX": "_client",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "ClientName",
+                "PREFIX": null,
+                "SUFFIX": " - Client",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "ClientTypeDescription",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "Foundation"
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Household ID",
+                "PREFIX": null,
+                "SUFFIX": "_household",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "CRM_ContactID",
+                "PREFIX": null,
+                "SUFFIX": "_contact",
+                "VALUE": null
+            }
+        ]
+    },
+    "accounts": {
+        "FILENAME": "accounts.csv",
+        "OUTPUT_PATH": "accounts/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Account ID",
+                "PREFIX": null,
+                "SUFFIX": "_account",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Account Name",
+                "PREFIX": null,
+                "SUFFIX": " - Account",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Type Name",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "Other"
+            }
+        ]
+    },
+    "instruments": {
+        "FILENAME": "instruments.csv",
+        "OUTPUT_PATH": "instruments/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Instrument ID",
+                "PREFIX": null,
+                "SUFFIX": "instrument",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Instrument Name",
+                "PREFIX": null,
+                "SUFFIX": " - Instrument",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Currency",
+                "COL_NAME": "Currency Name",
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Valuation Per Position",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": true
+            },
+            {
+                "SOURCE": "Firm Security Type Name",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "Unitless"
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Class Series ID",
+                "PREFIX": null,
+                "SUFFIX": "_class_series",
+                "VALUE": null
+            }
+        ]
+    },
+    "fund_client_ownership": {
+        "FILENAME": "fund_client_ownership.csv",
+        "OUTPUT_PATH": "fund_client_ownership/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Class Series ID",
+                "PREFIX": null,
+                "SUFFIX": "_class_series",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Client Account ID",
+                "PREFIX": null,
+                "SUFFIX": "_account",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Start Date",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": 1.0
+            }
+        ]
+    },
+    "account_remap": {
+        "FILENAME": "account_remap.csv",
+        "OUTPUT_PATH": "account_remap/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Class Series ID",
+                "PREFIX": null,
+                "SUFFIX": "_class_series",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Client ID",
+                "PREFIX": null,
+                "SUFFIX": "_client",
+                "VALUE": null
+            }
+        ]
+    }
+}

@@ -1,0 +1,253 @@
+{
+    "funds": {
+        "FILENAME": "funds.csv",
+        "OUTPUT_PATH": "funds/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Firm Provided Key",
+                "PREFIX": "sma_fund_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Name",
+                "PREFIX": null,
+                "SUFFIX": " - SMA Fund",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Client ID",
+                "COL_NAME": "Fund Manager Firm Provided Key",
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Type",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "SMA"
+            }
+        ]
+    },
+    "class_series": {
+        "FILENAME": "class_series.csv",
+        "OUTPUT_PATH": "class_series/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Firm Provided Key",
+                "PREFIX": "sma_class_series_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Name",
+                "PREFIX": null,
+                "SUFFIX": " - SMA Class Series",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Fund Firm Provided Key",
+                "PREFIX": "sma_fund_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Weight",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": 1.0
+            }
+        ]
+    },
+    "households": {
+        "FILENAME": "households.csv",
+        "OUTPUT_PATH": "households/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Household ID",
+                "PREFIX": "sma_household_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Household Name",
+                "PREFIX": null,
+                "SUFFIX": " - SMA Household",
+                "VALUE": null
+            }
+        ]
+    },
+    "clients": {
+        "FILENAME": "clients.csv",
+        "OUTPUT_PATH": "clients/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "ClientID",
+                "PREFIX": "sma_client_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "ClientName",
+                "PREFIX": null,
+                "SUFFIX": " - SMA Client",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "ClientTypeDescription",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "Foundation"
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Household ID",
+                "PREFIX": "sma_household_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "CRM_ContactID",
+                "PREFIX": "sma_contact_",
+                "SUFFIX": null,
+                "VALUE": null
+            }
+        ]
+    },
+    "accounts": {
+        "FILENAME": "accounts.csv",
+        "OUTPUT_PATH": "importers/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Account ID",
+                "PREFIX": "sma_account_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Account Name",
+                "PREFIX": null,
+                "SUFFIX": " - SMA Account",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Type Name",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "Other"
+            }
+        ]
+    },
+    "instruments": {
+        "FILENAME": "instruments.csv",
+        "OUTPUT_PATH": "importers/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Instrument ID",
+                "PREFIX": "sma_instrument_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account Name",
+                "COL_NAME": "Instrument Name",
+                "PREFIX": null,
+                "SUFFIX": " - SMA Instrument",
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Currency",
+                "COL_NAME": "Currency Name",
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Valuation Per Position",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": true
+            },
+            {
+                "SOURCE": "Firm Security Type Name",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": "Unitless"
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Class Series ID",
+                "PREFIX": "sma_class_series_",
+                "SUFFIX": null,
+                "VALUE": null
+            }
+        ]
+    },
+    "fund_client_ownership": {
+        "FILENAME": "fund_client_ownership.csv",
+        "OUTPUT_PATH": "importers/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Class Series ID",
+                "PREFIX": "sma_class_series_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Client Account ID",
+                "PREFIX": "sma_account_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Start Date",
+                "COL_NAME": null,
+                "PREFIX": null,
+                "SUFFIX": null,
+                "VALUE": 1.0
+            }
+        ]
+    },
+    "account_remap": {
+        "FILENAME": "account_remap.csv",
+        "OUTPUT_PATH": "importers/",
+        "COLUMNS": [
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Class Series ID",
+                "PREFIX": "sma_class_series_",
+                "SUFFIX": null,
+                "VALUE": null
+            },
+            {
+                "SOURCE": "Account ID",
+                "COL_NAME": "Client ID",
+                "PREFIX": "sma_client_",
+                "SUFFIX": null,
+                "VALUE": null
+            }
+        ]
+    }
+}
