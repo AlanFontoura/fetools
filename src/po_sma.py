@@ -1,88 +1,82 @@
 import pandas as pd
-from dataclasses import dataclass, asdict
 import json
+from pathlib import Path
 
 
-@dataclass(frozen=True)
-class ColumnDefinitions:
-    SOURCE: str
-    COL_NAME: str | None = None
-    PREFIX: str | None = None
-    SUFFIX: str | None = None
-    VALUE: str | float | None = None
+class FileGenerator:
+    def __init__(
+        self,
+        data: pd.DataFrame,
+        file_defs: dict[str, dict],
+        save: bool = True,
+    ):
+        self.data = data
+        self.file_defs = file_defs
+        self.save = save
 
+    def generate_file(self, file_def: dict) -> pd.DataFrame:
+        df_changer = DataFrameChanger(self.data)
+        df_changer.change_columns(file_def)
+        columns = list(file_def.keys())
+        return df_changer.df[columns]
 
-@dataclass(frozen=True)
-class FileDefinitions:
-    FILENAME: str
-    OUTPUT_PATH: str
-    COLUMNS: list[ColumnDefinitions]
+    def create_folders(self, filename: str, file_def: dict) -> Path:
+        output_folder = file_def.get("folder", filename)
+        output_path = Path("data/outputs", output_folder)
+        output_path.mkdir(parents=True, exist_ok=True)
+        return output_path
+
+    def generate_files(self) -> None:
+        for filename, configs in self.file_defs.items():
+            file = self.generate_file(configs["cols"])
+            output_path = self.create_folders(filename, configs)
+            if self.save:
+                file.to_csv(Path(output_path, f"{filename}.csv"), index=False)
 
 
 class DataFrameChanger:
     def __init__(self, df: pd.DataFrame):
         self.df = df
 
-    def modify_column(
+    def change_columns(
         self,
-        column_def: ColumnDefinitions,
-    ) -> pd.DataFrame:
-        col_name = column_def.COL_NAME or column_def.SOURCE
-        if column_def.PREFIX:
-            self.df[col_name] = [
-                f"{column_def.PREFIX}{entry}"
-                for entry in self.df[column_def.SOURCE]
-            ]
-        if column_def.SUFFIX:
-            self.df[col_name] = [
-                f"{entry}{column_def.SUFFIX}"
-                for entry in self.df[column_def.SOURCE]
-            ]
-        if column_def.VALUE is not None:
-            self.df[col_name] = column_def.VALUE
-        return self.df
+        configs: dict[str, dict],
+    ) -> None:
+        for target_col, config in configs.items():
+            if "value" in config:
+                self.add_constant_column(target_col, config["value"])
+            else:
+                self.copy_column(
+                    source_col=config["source"],
+                    target_col=target_col,
+                    prefix=config.get("prefix", ""),
+                    suffix=config.get("suffix", ""),
+                )
 
-    def modify_columns(
+    def copy_column(
         self,
-        column_defs: list[ColumnDefinitions],
-        extra_columns: list[str] = [],
-    ) -> pd.DataFrame:
-        for column_def in column_defs:
-            self.df = self.modify_column(column_def)
-        keep_columns = [
-            column_def.COL_NAME if column_def.COL_NAME else column_def.SOURCE
-            for column_def in column_defs
-        ] + extra_columns
-        return self.df[keep_columns]
-
-
-class FileGenerator:
-    def __init__(
-        self, data: pd.DataFrame, file_defs: dict[str, FileDefinitions]
-    ):
-        self.data = DataFrameChanger(data)
-        self.file_defs = file_defs
-
-    def generate_file(self, file_def: FileDefinitions) -> pd.DataFrame:
-        self.data.df = self.data.modify_columns(file_def.COLUMNS)
-        return self.data.df
-
-    def generate_files(self):
-        for file_def in self.file_defs.values():
-            self.generate_file(file_def)
-
-
-def load_file_definitions(path: str) -> dict[str, FileDefinitions]:
-    with open(path, "r") as f:
-        raw_defs = json.load(f)
-    file_defs = {}
-    for key, value in raw_defs.items():
-        column_defs = [
-            ColumnDefinitions(**col_def) for col_def in value["COLUMNS"]
+        source_col: str,
+        target_col: str,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> None:
+        self.df[target_col] = [
+            f"{prefix}{entry}{suffix}" for entry in self.df[source_col]
         ]
-        file_defs[key] = FileDefinitions(
-            FILENAME=value["FILENAME"],
-            OUTPUT_PATH=value["OUTPUT_PATH"],
-            COLUMNS=column_defs,
-        )
-    return file_defs
+
+    def add_constant_column(
+        self, target_col: str, value: str | float
+    ) -> None:
+        self.df[target_col] = value
+
+
+def main():
+    data = pd.read_csv("data/inputs/SMA_example.csv")
+    with open("src/configs/sma_mapping.json", "r") as f:
+        file_defs = json.load(f)
+    SMA = FileGenerator(data, file_defs)
+    SMA.generate_files()
+
+
+if __name__ == "__main__":
+    main()
