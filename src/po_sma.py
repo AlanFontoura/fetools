@@ -57,13 +57,19 @@ class DataFrameChanger:
 
 
 class FileGenerator:
-    def __init__(self, data: pd.DataFrame, file_def: FileDefinitions):
+    def __init__(
+        self, data: pd.DataFrame, file_defs: dict[str, FileDefinitions]
+    ):
         self.data = DataFrameChanger(data)
-        self.file_def = file_def
+        self.file_defs = file_defs
 
-    def generate_file(self) -> pd.DataFrame:
-        self.data.df = self.data.modify_columns(self.file_def.COLUMNS)
+    def generate_file(self, file_def: FileDefinitions) -> pd.DataFrame:
+        self.data.df = self.data.modify_columns(file_def.COLUMNS)
         return self.data.df
+
+    def generate_files(self):
+        for file_def in self.file_defs.values():
+            self.generate_file(file_def)
 
 
 def load_file_definitions(path: str) -> dict[str, FileDefinitions]:
