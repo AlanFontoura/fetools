@@ -2,8 +2,8 @@
 FE Tools: general financial engineering tools for daily routines.
 """
 
-from .scripts import po_sma_loader
+from .scripts.po_sma_loader import extend_ownership_table
 
 __all__ = [
-    "po_sma_loader",
+    "extend_ownership_table",
 ]
