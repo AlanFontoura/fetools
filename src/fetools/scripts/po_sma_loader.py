@@ -1,4 +1,62 @@
+"""
+This module provides functions to create a structure for
+Partial Ownership and SMA setup
+"""
+
 import pandas as pd
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass
+class ColumnConfig:
+    source: str = ""
+    name: str = ""
+    prefix: str = ""
+    suffix: str = ""
+    value: Any = None
+
+
+@dataclass
+class LoaderConfig:
+    name: str = ""
+    folder: str = ""
+    columns: list[ColumnConfig] = []
+
+
+class DataTransformer:
+    def __init__(self, df: pd.DataFrame, loader: LoaderConfig):
+        self.df = df
+        self.loader = loader
+
+    def transform(self) -> pd.DataFrame:
+        final_columns = []
+        for column_config in self.loader.columns:
+            self.df = self.transform_column(column_config)
+            final_columns.append(column_config.name)
+        self.df = self.df[final_columns]
+        return self.df
+
+    def transform_column(self, config: ColumnConfig) -> pd.DataFrame:
+        if config.value is not None:
+            self.df = self.create_constant_column(config.name, config.value)
+        else:
+            self.df[config.name] = self.add_prefix_suffix(
+                config.prefix, self.df[config.source], config.suffix
+            )
+        return self.df
+
+    @staticmethod
+    def add_prefix_suffix(
+        prefix: str, series: pd.Series, suffix: str
+    ) -> pd.Series:
+        return pd.Series([f"{prefix}{val}{suffix}" for val in series])
+
+    def create_constant_column(
+        self, column_name: str, value: Any
+    ) -> pd.DataFrame:
+        self.df[column_name] = value
+        return self.df
 
 
 def extend_ownership_table(df: pd.DataFrame) -> pd.DataFrame:
