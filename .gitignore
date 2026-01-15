@@ -19,8 +19,9 @@ htmlcov/
 .vscode/settings.json
 .vscode/launch.json
 *.code-workspace
+.github/copilot-instructions.md
 
-# Data CONTENTS only (keep empty folders via .gitkeep)
+# Data CONTENTS only
 data/
 
 # OS generated
