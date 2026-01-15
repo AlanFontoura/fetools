@@ -4,13 +4,20 @@ import argparse
 import getpass
 import json
 import requests
+import pandas as pd
+from tqdm import tqdm
+from multiprocessing import Pool
+from typing import Union, Optional, Any
+from functools import partial
+from fetools.scripts.exceptions import NoResponseError
 
-from drf_client.connection import (
+
+from drf_client.connection import (  # type: ignore[import-untyped]
     Api as RestApi,
     DEFAULT_HEADERS,
     RestResource,
 )
-from drf_client.exceptions import HttpClientError
+from drf_client.exceptions import HttpClientError  # type: ignore[import-untyped]
 
 LOG = logging.getLogger(__name__)
 
@@ -66,12 +73,13 @@ class D1g1tApi(RestApi):
             content = json.loads(r.content.decode())
             self.token = content["token"]
             return True
+        return False
 
 
 class BaseMain(object):
-    parser = None
-    args = None
-    api = None
+    parser: Optional[argparse.ArgumentParser] = None
+    args: Optional[argparse.Namespace] = None
+    api: Optional[D1g1tApi] = None
     options = {
         "DOMAIN": None,
         "API_PREFIX": "api/v1",
@@ -161,27 +169,32 @@ class BaseMain(object):
         """
         Figure out server domain URL based on --server and --customer args
         """
-        if "https://" not in self.args.server:
-            return f"https://{self.args.server}"
-        return self.args.server
+        assert self.args is not None, "Arguments not initialized"
+        server = str(self.args.server)
+        if "https://" not in server:
+            return f"https://{server}"
+        return server
 
     def login(self) -> bool:
         """
         Get password from user and login
         """
+        assert self.api is not None, "API not initialized"
+        assert self.args is not None, "Arguments not initialized"
         password = getpass.getpass()
         ok = self.api.d1g1t_login(
             username=self.args.username, password=password
         )
         if ok:
             LOG.info("Welcome {0}".format(self.args.username))
-        return ok
+        return bool(ok)
 
     def refresh_login(self) -> None:
         """
         token needs to be refreshed every 4hrs or so!
         :return:
         """
+        assert self.api is not None, "API not initialized"
         api_auth = self.api.auth.login.refresh
         tok = api_auth._store["token"]
         r = api_auth.post({"token": tok})
@@ -202,3 +215,58 @@ class BaseMain(object):
         :return: Nothing
         """
         LOG.warning("No actual work done")
+
+
+class ReportGeneric(BaseMain):
+    def __init__(self):
+        BaseMain.__init__(self)
+
+    def get_calculation(self, calc_type: str, payload: dict):
+        assert self.api is not None, "API not initialized"
+        calc_call = self.api.calc(calc_type)
+        response = calc_call.post(data=payload)
+        if not response:
+            raise NoResponseError("Request returned no result!")
+        return response
+
+    def get_data(
+        self, data_type, extra_params, to_frame=True
+    ) -> Union[dict, pd.DataFrame]:
+        assert self.api is not None, "API not initialized"
+        api_call = self.api.data
+        api_call._store["base_url"] += f"{data_type}/"
+        response = api_call.get(extra=extra_params)
+        if response:
+            if to_frame:
+                return pd.DataFrame(response["results"])  # type: ignore[no-any-return]
+            else:
+                return dict(response["results"])
+        else:
+            raise NoResponseError
+
+    def get_large_data(self, data_type, batch_size=1000):
+        assert self.api is not None, "API not initialized"
+        api_call = self.api.data
+        api_call._store["base_url"] += f"{data_type}/"
+        try:
+            response = api_call.get(extra=f"limit={1}")
+            total_entries = response["count"]
+            print(f"Total number of entries: {total_entries}")
+        except:
+            raise NoResponseError("Request returned no result!")
+
+        total_batches = (total_entries // batch_size) + 1
+        extras = [
+            f"limit={batch_size}&offset={i * batch_size}"
+            for i in range(total_batches)
+        ]
+
+        worker = partial(self.get_data, data_type)
+
+        with Pool() as pool:
+            results = list(
+                tqdm(pool.imap(worker, extras), total=total_batches)
+            )
+
+        final_df = pd.concat(results, ignore_index=True)
+        return final_df

@@ -4,11 +4,11 @@ Partial Ownership and SMA setup
 """
 
 import pandas as pd
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
-@dataclass
+@dataclass(frozen=True)
 class ColumnConfig:
     source: str = ""
     name: str = ""
@@ -17,11 +17,11 @@ class ColumnConfig:
     value: Any = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class LoaderConfig:
     name: str = ""
     folder: str = ""
-    columns: list[ColumnConfig] = []
+    columns: list[ColumnConfig] = field(default_factory=list)
 
 
 class DataTransformer:
