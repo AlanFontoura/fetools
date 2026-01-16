@@ -308,6 +308,7 @@ class ComplianceReport(ReportGeneric):
                     total=len(entity_ids),
                 )
             )
+        res = [df for df in res if not df.empty]
         combined_df: pd.DataFrame = pd.concat(res, ignore_index=True)
         return combined_df
 
@@ -369,9 +370,9 @@ class ComplianceReport(ReportGeneric):
     def format_mandate_data_frame(self) -> None:
         self.filter_zero_market_value_mandates()
         self.filter_empty_holdings()
-        # self.add_mandate_returns()
-        # self.adjust_rows_and_columns()
-        # self.add_cashlike_definitions()
+        self.add_mandate_returns()
+        self.adjust_rows_and_columns()
+        self.add_cashlike_definitions()
         # self.add_guidelines()
 
     def filter_zero_market_value_mandates(self) -> None:
@@ -395,7 +396,8 @@ class ComplianceReport(ReportGeneric):
             ~self.mandates["Market Value"].isna()
         ].reset_index(drop=True)
         self.mandates = self.mandates[
-            self.mandates["Market Value"] != 0
+            (self.mandates["Market Value"] >= 0.01)
+            | (self.mandates["Market Value"] <= -0.01)
         ].reset_index(drop=True)
 
     def add_mandate_returns(self) -> None:
@@ -422,22 +424,18 @@ class ComplianceReport(ReportGeneric):
             self.mandates["Name"] != "Total"
         ].reset_index(drop=True)
 
-        # Build rename mapping dynamically from guidelines
+        # Rename fixed columns
         rename_map = {
             "Name": "Instrument ID",
             "Security Name": "Instrument Name",
             "Security Currency": "Currency",
         }
-
-        # Add guideline columns to rename map (they keep their Entry name)
-        guidelines = self.config.get("guidelines", [])
-        for guideline in guidelines:
-            entry_name = guideline["Entry name"]
-            # The column already has the correct name from Entry name,
-            # so only add to map if it needs shortening or standardization
-            # In this case, we don't need to rename them
-
         self.mandates = self.mandates.rename(columns=rename_map)
+
+        # Ensure Instrument ID is string type
+        self.mandates["Instrument ID"] = self.mandates[
+            "Instrument ID"
+        ].astype(str)
 
     def add_cashlike_definitions(self) -> None:
         # Find guidelines with Cash classification defined
@@ -452,12 +450,8 @@ class ComplianceReport(ReportGeneric):
                     col_name,
                 ] = cash_value
 
+    # TODO: Check if this method is still needed
     def add_guidelines(self) -> None:
-        mandate_ids = self.guidelines[
-            ["entity_id", "Mandate ID"]
-        ].drop_duplicates()
-        self.mandates = self.mandates.merge(mandate_ids, how="left")
-
         # Build column list dynamically
         returns = self.config.get("returns", [])
         return_cols = [return_metric["name"] for return_metric in returns]
@@ -495,11 +489,24 @@ class ComplianceReport(ReportGeneric):
         # Don't worry about these copilot. These rows are here just to speed up the process while I test.
         # Final version will download all mandates, and there'll be no hardcoded file read.
         # self.mandates = self.get_all_mandates(entity_ids)
+        # self.mandates.to_parquet(
+        #     "data/outputs/compliance/mandates.parquet", index=False
+        # )
         self.mandates = pd.read_parquet(
             "data/outputs/compliance/mandates.parquet"
         )
         print(self.mandates.shape)
         self.format_mandate_data_frame()
+        self.mandates.to_parquet(
+            "data/outputs/compliance/mandates_formatted.parquet",
+            index=False,
+        )
+        self.mandates.to_csv(
+            "data/outputs/compliance/mandates_formatted.csv", index=False
+        )
+        self.guidelines.to_csv(
+            "data/outputs/compliance/guidelines.csv", index=False
+        )
         print(self.mandates.shape)
 
 
