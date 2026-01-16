@@ -6,9 +6,10 @@ import json
 import requests
 import pandas as pd
 from tqdm import tqdm
-from multiprocessing import Pool
+from multiprocess import Pool
 from typing import Union, Optional, Any
 from functools import partial
+from fetools.scripts.d1g1tparser import ChartTableFormatter
 from fetools.scripts.exceptions import NoResponseError
 
 
@@ -221,13 +222,15 @@ class ReportGeneric(BaseMain):
     def __init__(self):
         BaseMain.__init__(self)
 
-    def get_calculation(self, calc_type: str, payload: dict):
+    def get_calculation(self, calc_type: str, payload: dict) -> pd.DataFrame:
         assert self.api is not None, "API not initialized"
         calc_call = self.api.calc(calc_type)
         response = calc_call.post(data=payload)
         if not response:
             raise NoResponseError("Request returned no result!")
-        return response
+        parser = ChartTableFormatter(response, payload)
+        result = parser.parse_data()
+        return result
 
     def get_data(
         self, data_type, extra_params, to_frame=True
