@@ -111,7 +111,7 @@ class ChartTableFormatter:
         )
 
     def _get_label_from_metric(self, metric: dict) -> str:
-        label = metric.get("slug")
+        label = str(metric.get("slug"))
 
         if label.endswith("custom-period"):
             date_range = metric.get("date_range") or {}

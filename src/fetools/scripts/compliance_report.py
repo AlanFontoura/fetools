@@ -382,6 +382,9 @@ class ComplianceReport(ReportGeneric):
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
         data = self.get_all_mandates(entity_ids)
+        data.to_parquet(
+            "data/outputs/compliance/mandates.parquet", index=False
+        )
         pprint(data.head())
         pprint(data.shape)
 
