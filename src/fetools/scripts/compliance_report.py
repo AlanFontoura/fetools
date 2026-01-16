@@ -111,15 +111,15 @@ class ComplianceReport(ReportGeneric):
         ]
 
         # Add dynamic guideline metrics from config
-        guidelines = self.config.get("guidelines", [])
-        for guideline in guidelines:
+        guidelines = self.config.get("guidelines", {})
+        for guideline_name, guideline_config in guidelines.items():
             base_metrics.append(
                 {
                     "order": len(base_metrics),
-                    "slug": guideline["slug"],
+                    "slug": guideline_config["slug"],
                     "contribution_dimension": None,
                     "contribution_dimension_2": None,
-                    "column_title": guideline["Entry name"],
+                    "column_title": guideline_config["Entry name"],
                 }
             )
 
@@ -239,8 +239,10 @@ class ComplianceReport(ReportGeneric):
     def guidelines(self) -> pd.DataFrame:
         s3_path = f"s3://d1g1t-client-{self.config['region']}/{self.config['client']}/exports/{self.config['env']}-{self.config['client']}-investment-mandates-guideline-limits.csv"
         if self._guidelines.empty:
-            guidelines = pd.read_csv(s3_path, dtype={"Client": str})
-            guidelines = guidelines[guidelines['Comparison Value'].notna()]
+            guidelines = pd.read_csv(
+                s3_path, dtype={"Client": str, "Comparison Value": str}
+            )
+            guidelines = guidelines[guidelines["Comparison Value"].notna()]
             guidelines = guidelines[
                 [
                     "Entity",
@@ -250,6 +252,7 @@ class ComplianceReport(ReportGeneric):
                     "Comparison Value",
                     "Lower Limit",
                     "Upper Limit",
+                    "Limit Tolerance",
                 ]
             ]
             guidelines = guidelines.rename(
@@ -262,12 +265,18 @@ class ComplianceReport(ReportGeneric):
                 }
             )
             mappers = []
-            for guideline, mapping in self.config['guidelines-mapping'].items():
-                mapping_rules = pd.DataFrame(mapping.items(), columns = ["Comparison", "Compliance Item"])
+            for guideline, mapping in self.config[
+                "guidelines-mapping"
+            ].items():
+                mapping_rules = pd.DataFrame(
+                    mapping.items(), columns=["Comparison", "Compliance Item"]
+                )
                 mapping_rules["Level"] = guideline
                 mappers.append(mapping_rules)
             mapping_df = pd.concat(mappers, ignore_index=True)
-            guidelines = guidelines.merge(mapping_df, how="left", on=["Level", "Comparison"])
+            guidelines = guidelines.merge(
+                mapping_df, how="left", on=["Level", "Comparison"]
+            )
 
             guidelines = guidelines.sort_values(
                 ["Mandate ID", "Level", "Compliance Item"]
@@ -285,8 +294,11 @@ class ComplianceReport(ReportGeneric):
                     "Compliance Item",
                     "Lower Limit",
                     "Upper Limit",
+                    "Limit Tolerance",
                 ]
             ]
+            guidelines["Lower Limit"] = guidelines["Lower Limit"].fillna(0)
+            guidelines["Upper Limit"] = guidelines["Upper Limit"].fillna(1)
             self._guidelines = guidelines
         return self._guidelines
 
@@ -382,7 +394,6 @@ class ComplianceReport(ReportGeneric):
         self.add_mandate_returns()
         self.adjust_rows_and_columns()
         self.add_cashlike_definitions()
-        # self.add_guidelines()
 
     def filter_zero_market_value_mandates(self) -> None:
         main_mandates = (
@@ -448,76 +459,32 @@ class ComplianceReport(ReportGeneric):
 
     def add_cashlike_definitions(self) -> None:
         # Find guidelines with Cash classification defined
-        guidelines = self.config.get("guidelines", [])
-        for guideline in guidelines:
-            if "Cash classification" in guideline:
-                col_name = guideline["Entry name"]
-                cash_value = guideline["Cash classification"]
+        guidelines = self.config.get("guidelines", {})
+        for guideline_name, guideline_config in guidelines.items():
+            if "Cash classification" in guideline_config:
+                col_name = guideline_config["Entry name"]
+                cash_value = guideline_config["Cash classification"]
                 self.mandates.loc[
                     self.mandates["Currency"]
                     == self.mandates["Instrument ID"],
                     col_name,
                 ] = cash_value
 
-    # TODO: Check if this method is still needed
-    def add_guidelines(self) -> None:
-        # Build column list dynamically
-        returns = self.config.get("returns", [])
-        return_cols = [return_metric["name"] for return_metric in returns]
-
-        guidelines = self.config.get("guidelines", [])
-        guideline_cols = [guideline["Entry name"] for guideline in guidelines]
-
-        final_cols = (
-            [
-                "Mandate ID",
-                "Currency",
-                "Client",
-                "Client ID",
-                "Rep Code",
-            ]
-            + return_cols
-            + [
-                "Instrument ID",
-                "Instrument Name",
-            ]
-            + guideline_cols
-            + [
-                "Market Value",
-                "Mandate MV",
-                "entity_id",
-            ]
-        )
-
-        self.mandates = self.mandates[final_cols]
-
     # endregion Data formatting
 
     # region Check compliance
 
     def check_compliance_rules(self, df: pd.DataFrame) -> pd.DataFrame:
-        compliance_level1 = self.check_level1_guidelines(df)
-        compliance_level2 = self.check_level2_guidelines(df)
-        derivatives = self.check_derivative_compliance(df)
-        short_and_leverage = self.check_short_and_leverage_compliance(df)
-        concentration = self.check_concentration_compliance(df)
-        all_breaches = pd.concat(
-            [
-                compliance_level1,
-                compliance_level2,
-                derivatives,
-                short_and_leverage,
-                concentration,
-            ],
-            ignore_index=True,
-        )
-        return all_breaches.sort_values(
-            ["Mandate ID", "Compliance Rule", "Compliance Item"]
-        ).reset_index(drop=True)
-    
+        # check guidelines
+        # check derivatives
+        # check short and leverage
+        # check concentration
+        # add breaches
+        return pd.DataFrame()
+
     def check_guidelines(self, guideline: str) -> pd.DataFrame:
 
-
+        return pd.DataFrame()
 
     # endregion Check compliance
 
@@ -532,7 +499,6 @@ class ComplianceReport(ReportGeneric):
         self.mandates = pd.read_parquet(
             "data/outputs/compliance/mandates.parquet"
         )
-        print(self.mandates.shape)
         self.format_mandate_data_frame()
         self.mandates.to_parquet(
             "data/outputs/compliance/mandates_formatted.parquet",
@@ -544,7 +510,6 @@ class ComplianceReport(ReportGeneric):
         self.guidelines.to_csv(
             "data/outputs/compliance/guidelines.csv", index=False
         )
-        print(self.mandates.shape)
 
 
 if __name__ == "__main__":
