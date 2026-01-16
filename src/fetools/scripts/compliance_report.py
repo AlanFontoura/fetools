@@ -240,6 +240,7 @@ class ComplianceReport(ReportGeneric):
         s3_path = f"s3://d1g1t-client-{self.config['region']}/{self.config['client']}/exports/{self.config['env']}-{self.config['client']}-investment-mandates-guideline-limits.csv"
         if self._guidelines.empty:
             guidelines = pd.read_csv(s3_path, dtype={"Client": str})
+            guidelines = guidelines[guidelines['Comparison Value'].notna()]
             guidelines = guidelines[
                 [
                     "Entity",
@@ -260,8 +261,16 @@ class ComplianceReport(ReportGeneric):
                     "Comparison Value": "Comparison",
                 }
             )
+            mappers = []
+            for guideline, mapping in self.config['guidelines-mapping'].items():
+                mapping_rules = pd.DataFrame(mapping.items(), columns = ["Comparison", "Compliance Item"])
+                mapping_rules["Level"] = guideline
+                mappers.append(mapping_rules)
+            mapping_df = pd.concat(mappers, ignore_index=True)
+            guidelines = guidelines.merge(mapping_df, how="left", on=["Level", "Comparison"])
+
             guidelines = guidelines.sort_values(
-                ["Mandate ID", "Level", "Comparison"]
+                ["Mandate ID", "Level", "Compliance Item"]
             ).reset_index(drop=True)
 
             guidelines = guidelines.merge(self.risk_profiles, how="left")
@@ -273,7 +282,7 @@ class ComplianceReport(ReportGeneric):
                     "Client ID",
                     "Client Name",
                     "Level",
-                    "Comparison",
+                    "Compliance Item",
                     "Lower Limit",
                     "Upper Limit",
                 ]
@@ -483,6 +492,34 @@ class ComplianceReport(ReportGeneric):
         self.mandates = self.mandates[final_cols]
 
     # endregion Data formatting
+
+    # region Check compliance
+
+    def check_compliance_rules(self, df: pd.DataFrame) -> pd.DataFrame:
+        compliance_level1 = self.check_level1_guidelines(df)
+        compliance_level2 = self.check_level2_guidelines(df)
+        derivatives = self.check_derivative_compliance(df)
+        short_and_leverage = self.check_short_and_leverage_compliance(df)
+        concentration = self.check_concentration_compliance(df)
+        all_breaches = pd.concat(
+            [
+                compliance_level1,
+                compliance_level2,
+                derivatives,
+                short_and_leverage,
+                concentration,
+            ],
+            ignore_index=True,
+        )
+        return all_breaches.sort_values(
+            ["Mandate ID", "Compliance Rule", "Compliance Item"]
+        ).reset_index(drop=True)
+    
+    def check_guidelines(self, guideline: str) -> pd.DataFrame:
+
+
+
+    # endregion Check compliance
 
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
