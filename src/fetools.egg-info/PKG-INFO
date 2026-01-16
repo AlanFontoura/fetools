@@ -5,13 +5,21 @@ Summary: FE Tools: general financial engineering tools for our daily routines
 Requires-Python: >=3.12
 Description-Content-Type: text/markdown
 Requires-Dist: pandas>=2.2
+Requires-Dist: numpy>=1.26
 Requires-Dist: awswrangler>=2.20
 Requires-Dist: fsspec>=2024.9
-Requires-Dist: tomlkit>=0.11
+Requires-Dist: django-rest-framework-client>=0.12
+Requires-Dist: tomlkit>=0.13
+Requires-Dist: requests>=2.32
+Requires-Dist: tqdm>=4.66
+Requires-Dist: multiprocess>=0.70
+Requires-Dist: python-dateutil>=2.8
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 Requires-Dist: black>=24.8; extra == "dev"
 Requires-Dist: mypy>=1.11; extra == "dev"
+Requires-Dist: types-requests>=2.32; extra == "dev"
+Requires-Dist: pandas-stubs>=2.2; extra == "dev"
 
 # FE Tools
 

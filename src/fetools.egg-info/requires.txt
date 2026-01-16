@@ -1,9 +1,17 @@
 pandas>=2.2
+numpy>=1.26
 awswrangler>=2.20
 fsspec>=2024.9
-tomlkit>=0.11
+django-rest-framework-client>=0.12
+tomlkit>=0.13
+requests>=2.32
+tqdm>=4.66
+multiprocess>=0.70
+python-dateutil>=2.8
 
 [dev]
 pytest>=8.0
 black>=24.8
 mypy>=1.11
+types-requests>=2.32
+pandas-stubs>=2.2

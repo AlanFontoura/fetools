@@ -3,7 +3,6 @@ import tomllib
 from fetools.scripts.base_main import ReportGeneric
 from multiprocess import Pool
 from tqdm import tqdm
-from pprint import pprint
 
 
 class ComplianceReport(ReportGeneric):
@@ -385,8 +384,8 @@ class ComplianceReport(ReportGeneric):
         data.to_parquet(
             "data/outputs/compliance/mandates.parquet", index=False
         )
-        pprint(data.head())
-        pprint(data.shape)
+        print(data.head())
+        print(data.shape)
 
 
 if __name__ == "__main__":
