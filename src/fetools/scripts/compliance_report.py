@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 
 class ComplianceReport(ReportGeneric):
+    # region Initialization
     def __init__(self, config_file: str = ""):
         with open(config_file, "rb") as f:
             self.config = tomllib.load(f)
@@ -19,6 +20,9 @@ class ComplianceReport(ReportGeneric):
 
         self._guidelines: pd.DataFrame = pd.DataFrame()
         self._risk_profiles: pd.DataFrame = pd.DataFrame()
+        self.mandates: pd.DataFrame = pd.DataFrame()
+
+    # endregion Initialization
 
     # region Payloads
     @property
@@ -81,6 +85,57 @@ class ComplianceReport(ReportGeneric):
 
     @property
     def mandate_payload(self) -> dict:
+        # Start with fixed metrics
+        base_metrics = [
+            {
+                "order": 0,
+                "slug": "q-spot-holding-values-value",
+                "contribution_dimension": None,
+                "contribution_dimension_2": None,
+                "column_title": "Market Value",
+            },
+            {
+                "order": 1,
+                "slug": "s-instrument-currency-name",
+                "contribution_dimension": None,
+                "contribution_dimension_2": None,
+                "column_title": "Security Currency",
+            },
+            {
+                "order": 2,
+                "slug": "s-instrument-name",
+                "contribution_dimension": None,
+                "contribution_dimension_2": None,
+                "column_title": "Security Name",
+            },
+        ]
+
+        # Add dynamic guideline metrics from config
+        guidelines = self.config.get("guidelines", [])
+        for guideline in guidelines:
+            base_metrics.append(
+                {
+                    "order": len(base_metrics),
+                    "slug": guideline["slug"],
+                    "contribution_dimension": None,
+                    "contribution_dimension_2": None,
+                    "column_title": guideline["Entry name"],
+                }
+            )
+
+        # Add dynamic return metrics from config
+        returns = self.config.get("returns", [])
+        for return_metric in returns:
+            base_metrics.append(
+                {
+                    "order": len(base_metrics),
+                    "slug": return_metric["slug"],
+                    "contribution_dimension": None,
+                    "contribution_dimension_2": None,
+                    "column_title": return_metric["name"],
+                }
+            )
+
         return {
             "options": {
                 "single_result": True,
@@ -103,73 +158,7 @@ class ComplianceReport(ReportGeneric):
                     }
                 ]
             },
-            "metrics": {
-                "selected": [
-                    {
-                        "order": 0,
-                        "slug": "q-spot-holding-values-value",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Market Value",
-                    },
-                    {
-                        "order": 1,
-                        "slug": "s-instrument-currency-name",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Security Currency",
-                    },
-                    {
-                        "order": 2,
-                        "slug": "s-instrument-asset-class-name",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Security Asset Class",
-                    },
-                    {
-                        "order": 3,
-                        "slug": "s-instrument-asset-class-l2-name",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Security Asset Sub-class",
-                    },
-                    {
-                        "order": 4,
-                        "slug": "s-instrument-sub-strategy",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Sub Strategy",
-                    },
-                    {
-                        "order": 5,
-                        "slug": "s-strategy",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Strategy",
-                    },
-                    {
-                        "order": 6,
-                        "slug": "q-interval-irr-mwr-values-annualized-extern-invest-irr-last-quarter",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Internal Rate of Return (1Q)",
-                    },
-                    {
-                        "order": 7,
-                        "slug": "q-interval-irr-mwr-values-annualized-extern-invest-irr-last-year",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Internal Rate of Return (1Y)",
-                    },
-                    {
-                        "order": 8,
-                        "slug": "s-instrument-name",
-                        "contribution_dimension": None,
-                        "contribution_dimension_2": None,
-                        "column_title": "Security Name",
-                    },
-                ]
-            },
+            "metrics": {"selected": base_metrics},
         }
 
     @property
@@ -377,15 +366,141 @@ class ComplianceReport(ReportGeneric):
     # endregion Data downloaders
 
     # region Data formatting
+    def format_mandate_data_frame(self) -> None:
+        self.filter_zero_market_value_mandates()
+        self.filter_empty_holdings()
+        # self.add_mandate_returns()
+        # self.adjust_rows_and_columns()
+        # self.add_cashlike_definitions()
+        # self.add_guidelines()
+
+    def filter_zero_market_value_mandates(self) -> None:
+        main_mandates = (
+            self.mandates[self.mandates["Name"] == "Total"][
+                ["entity_id", "Mandate MV"]
+            ]
+            .fillna(0)
+            .reset_index(drop=True)
+        )
+        zero_mandates = main_mandates[
+            (main_mandates["Mandate MV"] >= -1)
+            & (main_mandates["Mandate MV"] <= 1)
+        ]["entity_id"].tolist()
+        self.mandates = self.mandates[
+            ~self.mandates["entity_id"].isin(zero_mandates)
+        ].reset_index(drop=True)
+
+    def filter_empty_holdings(self) -> None:
+        self.mandates = self.mandates[
+            ~self.mandates["Market Value"].isna()
+        ].reset_index(drop=True)
+        self.mandates = self.mandates[
+            self.mandates["Market Value"] != 0
+        ].reset_index(drop=True)
+
+    def add_mandate_returns(self) -> None:
+        returns = self.config.get("returns", [])
+        if not returns:
+            return
+
+        # Get return column names from config
+        return_cols = [return_metric["name"] for return_metric in returns]
+
+        # Extract returns for "Total" rows
+        mandate_returns = self.mandates.loc[
+            self.mandates["Name"] == "Total",
+            ["entity_id"] + return_cols,
+        ].reset_index(drop=True)
+
+        # Drop return columns from main df and merge back
+        self.mandates = self.mandates.drop(columns=return_cols).merge(
+            mandate_returns, how="left"
+        )
+
+    def adjust_rows_and_columns(self) -> None:
+        self.mandates = self.mandates[
+            self.mandates["Name"] != "Total"
+        ].reset_index(drop=True)
+
+        # Build rename mapping dynamically from guidelines
+        rename_map = {
+            "Name": "Instrument ID",
+            "Security Name": "Instrument Name",
+            "Security Currency": "Currency",
+        }
+
+        # Add guideline columns to rename map (they keep their Entry name)
+        guidelines = self.config.get("guidelines", [])
+        for guideline in guidelines:
+            entry_name = guideline["Entry name"]
+            # The column already has the correct name from Entry name,
+            # so only add to map if it needs shortening or standardization
+            # In this case, we don't need to rename them
+
+        self.mandates = self.mandates.rename(columns=rename_map)
+
+    def add_cashlike_definitions(self) -> None:
+        # Find guidelines with Cash classification defined
+        guidelines = self.config.get("guidelines", [])
+        for guideline in guidelines:
+            if "Cash classification" in guideline:
+                col_name = guideline["Entry name"]
+                cash_value = guideline["Cash classification"]
+                self.mandates.loc[
+                    self.mandates["Currency"]
+                    == self.mandates["Instrument ID"],
+                    col_name,
+                ] = cash_value
+
+    def add_guidelines(self) -> None:
+        mandate_ids = self.guidelines[
+            ["entity_id", "Mandate ID"]
+        ].drop_duplicates()
+        self.mandates = self.mandates.merge(mandate_ids, how="left")
+
+        # Build column list dynamically
+        returns = self.config.get("returns", [])
+        return_cols = [return_metric["name"] for return_metric in returns]
+
+        guidelines = self.config.get("guidelines", [])
+        guideline_cols = [guideline["Entry name"] for guideline in guidelines]
+
+        final_cols = (
+            [
+                "Mandate ID",
+                "Currency",
+                "Client",
+                "Client ID",
+                "Rep Code",
+            ]
+            + return_cols
+            + [
+                "Instrument ID",
+                "Instrument Name",
+            ]
+            + guideline_cols
+            + [
+                "Market Value",
+                "Mandate MV",
+                "entity_id",
+            ]
+        )
+
+        self.mandates = self.mandates[final_cols]
+
+    # endregion Data formatting
 
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
-        data = self.get_all_mandates(entity_ids)
-        data.to_parquet(
-            "data/outputs/compliance/mandates.parquet", index=False
+        # Don't worry about these copilot. These rows are here just to speed up the process while I test.
+        # Final version will download all mandates, and there'll be no hardcoded file read.
+        # self.mandates = self.get_all_mandates(entity_ids)
+        self.mandates = pd.read_parquet(
+            "data/outputs/compliance/mandates.parquet"
         )
-        print(data.head())
-        print(data.shape)
+        print(self.mandates.shape)
+        self.format_mandate_data_frame()
+        print(self.mandates.shape)
 
 
 if __name__ == "__main__":
