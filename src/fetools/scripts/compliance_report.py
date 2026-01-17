@@ -16,8 +16,9 @@ class ComplianceReport(ReportGeneric):
 
         # Override parsed args with config values
         assert self.args is not None, "Arguments not initialized"
-        self.args.username = self.config.get("username")
-        self.args.server = self.config.get("server")
+        self.base = self.config.get("base", {})
+        self.args.username = self.base.get("username")
+        self.args.server = self.base.get("server")
 
         self._guidelines: pd.DataFrame = pd.DataFrame()
         self._risk_profiles: pd.DataFrame = pd.DataFrame()
@@ -43,16 +44,16 @@ class ComplianceReport(ReportGeneric):
                 }
             },
             "settings": {
-                "currency": self.config.get("currency"),
+                "currency": self.base.get("currency"),
                 "date": {
-                    "date": self.config.get("report_date"),
+                    "date": self.base.get("report_date"),
                     "value": "specificDate",
                 },
             },
             "groups": {
                 "selected": [
                     {
-                        "grouping_criterion": f"https://{self.config.get('server')}/api/v1/constants/groupings/account-mandate/",
+                        "grouping_criterion": f"https://{self.base.get('server')}/api/v1/constants/groupings/account-mandate/",
                         "order": 0,
                     }
                 ]
@@ -120,7 +121,7 @@ class ComplianceReport(ReportGeneric):
                     "slug": guideline_config["slug"],
                     "contribution_dimension": None,
                     "contribution_dimension_2": None,
-                    "column_title": guideline_config["Entry name"],
+                    "column_title": guideline_config["name"],
                 }
             )
 
@@ -145,16 +146,16 @@ class ComplianceReport(ReportGeneric):
             },
             "control": {"selected_entities": {"investment_mandates": None}},
             "settings": {
-                "currency": self.config.get("currency"),
+                "currency": self.base.get("currency"),
                 "date": {
-                    "date": self.config.get("report_date"),
+                    "date": self.base.get("report_date"),
                     "value": "specificDate",
                 },
             },
             "groups": {
                 "selected": [
                     {
-                        "grouping_criterion": f"https://{self.config.get('server')}/api/v1/constants/groupings/security-id/",
+                        "grouping_criterion": f"https://{self.base.get('server')}/api/v1/constants/groupings/security-id/",
                         "order": 0,
                     }
                 ]
@@ -171,16 +172,16 @@ class ComplianceReport(ReportGeneric):
             },
             "control": {"selected_entities": {"investment_mandates": None}},
             "settings": {
-                "currency": self.config.get("currency"),
+                "currency": self.base.get("currency"),
                 "date": {
-                    "date": self.config.get("report_date"),
+                    "date": self.base.get("report_date"),
                     "value": "specificDate",
                 },
             },
             "groups": {
                 "selected": [
                     {
-                        "grouping_criterion": f"https://{self.config.get('server')}/api/v1/constants/groupings/account-id/",
+                        "grouping_criterion": f"https://{self.base.get('server')}/api/v1/constants/groupings/account-id/",
                         "order": 0,
                     }
                 ]
@@ -238,7 +239,7 @@ class ComplianceReport(ReportGeneric):
     # region Data downloaders
     @property
     def guidelines(self) -> pd.DataFrame:
-        s3_path = f"s3://d1g1t-client-{self.config['region']}/{self.config['client']}/exports/{self.config['env']}-{self.config['client']}-investment-mandates-guideline-limits.csv"
+        s3_path = f"s3://d1g1t-client-{self.base['region']}/{self.base['client']}/exports/{self.base['env']}-{self.base['client']}-investment-mandates-guideline-limits.csv"
         if self._guidelines.empty:
             guidelines = pd.read_csv(
                 s3_path, dtype={"Client": str, "Comparison Value": str}
@@ -466,7 +467,7 @@ class ComplianceReport(ReportGeneric):
         guidelines = self.config.get("guidelines", {})
         for _, guideline_config in guidelines.items():
             if "Cash classification" in guideline_config:
-                col_name = guideline_config["Entry name"]
+                col_name = guideline_config["name"]
                 cash_value = guideline_config["Cash classification"]
                 self.mandates.loc[
                     self.mandates["Currency"]
@@ -477,7 +478,7 @@ class ComplianceReport(ReportGeneric):
     def add_non_classified_label(self) -> None:
         guidelines = self.config.get("guidelines", {})
         for _, guideline_config in guidelines.items():
-            col_name = guideline_config["Entry name"]
+            col_name = guideline_config["name"]
             self.mandates.loc[self.mandates[col_name].isna(), col_name] = (
                 "Non-Classified"
             )
@@ -486,16 +487,36 @@ class ComplianceReport(ReportGeneric):
 
     # region Check compliance
 
-    def check_compliance_rules(self) -> pd.DataFrame:
-        # check guidelines
+    def check_compliance(self) -> pd.DataFrame:
+        # Main guideline checks
         guideline_checks = self.check_all_guidelines()
-        guideline_checks.to_csv(
-            "data/outputs/compliance/guideline_checks.csv", index=False
+
+        # Check other compliance rules
+        rules = self.config.get("compliance_rules", {})
+        if not rules:
+            return guideline_checks
+
+        # Short positions
+        short = self.check_negative_positions(
+            type="short", risk_profiles=rules.get("check_short_positions", [])
         )
-        # check short and leverage
-        # check concentration
+
+        # Leverage
+        leverage = self.check_negative_positions(
+            type="leverage", risk_profiles=rules.get("check_leverage", [])
+        )
+
+        # Concentration
+        concentration_checks = self.check_concentration(
+            concentration_rules=rules.get("concentration", {})
+        )
         # add breaches
-        return pd.DataFrame()
+        compliance_checks = pd.concat(
+            [guideline_checks, short, leverage, concentration_checks],
+            ignore_index=True,
+        )
+
+        return compliance_checks
 
     def check_all_guidelines(self) -> pd.DataFrame:
         results = []
@@ -504,7 +525,7 @@ class ComplianceReport(ReportGeneric):
         return pd.concat(results, ignore_index=True)
 
     def check_guideline(self, guideline: str) -> pd.DataFrame:
-        guideline_column = self.config["guidelines"][guideline]["Entry name"]
+        guideline_column = self.config["guidelines"][guideline]["name"]
         guideline_limits = self.guidelines[
             self.guidelines["Level"] == guideline
         ]
@@ -548,6 +569,109 @@ class ComplianceReport(ReportGeneric):
 
         return guideline_values
 
+    def check_negative_positions(
+        self, type: str, risk_profiles: list[str]
+    ) -> pd.DataFrame:
+        if not risk_profiles or risk_profiles == ["none"]:
+            return pd.DataFrame()
+
+        negative_positions = self.mandates.loc[
+            self.mandates["Market Value"] < 0,
+            [
+                "Mandate ID",
+                "Instrument ID",
+                "Market Value",
+                "Mandate MV",
+                "Currency",
+            ],
+        ].copy()
+
+        if type == "short":
+            negative_positions = negative_positions[
+                negative_positions["Instrument ID"]
+                != negative_positions["Currency"]
+            ]
+            negative_positions["Compliance Rule"] = "Short Position"
+        elif type == "leverage":
+            negative_positions = negative_positions[
+                negative_positions["Instrument ID"]
+                == negative_positions["Currency"]
+            ]
+            negative_positions["Compliance Rule"] = "Leverage"
+        else:
+            raise ValueError("Type must be either 'short' or 'leverage'")
+
+        negative_positions = negative_positions.rename(
+            columns={"Instrument ID": "Compliance Item"}
+        )
+
+        negative_positions = negative_positions.drop(columns=["Currency"])
+
+        if risk_profiles == ["all"]:
+            return negative_positions
+
+        negative_positions = negative_positions.merge(
+            self.risk_profiles[["Mandate ID", "Risk Profile"]],
+            how="left",
+            on="Mandate ID",
+        )
+        negative_positions = negative_positions[
+            negative_positions["Risk Profile"].isin(risk_profiles)
+        ].reset_index(drop=True)
+
+        return negative_positions
+
+    def check_concentration(
+        self, concentration_rules: dict[str, float]
+    ) -> pd.DataFrame:
+        if not concentration_rules or concentration_rules == {"all": 1}:
+            return pd.DataFrame()
+
+        if "all" in concentration_rules:
+            concentration = self.mandates[
+                ["Mandate ID", "Instrument ID", "Market Value", "Mandate MV"]
+            ].copy()
+            concentration["Current Weight"] = (
+                concentration["Market Value"] / concentration["Mandate MV"]
+            )
+            concentration["Compliance Rule"] = "Concentration"
+            concentration["Upper Limit"] = concentration_rules["all"]
+            concentration = concentration[
+                concentration["Current Weight"] > concentration["Upper Limit"]
+            ]
+            return concentration
+
+        concentration = self.mandates.merge(
+            self.risk_profiles[["Mandate ID", "Risk Profile"]], how="left"
+        )
+        concentration_limits = pd.DataFrame(
+            concentration_rules.items(),
+            columns=["Risk Profile", "Upper Limit"],
+        )
+        concentration = concentration.merge(
+            concentration_limits, how="left", on="Risk Profile"
+        )
+        concentration = concentration[concentration["Upper Limit"].notna()]
+        concentration["Current Weight"] = (
+            concentration["Market Value"] / concentration["Mandate MV"]
+        )
+        concentration = concentration.loc[
+            concentration["Current Weight"] > concentration["Upper Limit"],
+            [
+                "Mandate ID",
+                "Instrument ID",
+                "Market Value",
+                "Mandate MV",
+                "Current Weight",
+                "Upper Limit",
+            ],
+        ].copy()
+        concentration["Compliance Rule"] = "Concentration"
+        concentration = concentration.rename(
+            columns={"Instrument ID": "Compliance Item"}
+        )
+        return concentration
+
     # endregion Check compliance
 
     def after_login(self) -> None:
@@ -572,7 +696,10 @@ class ComplianceReport(ReportGeneric):
         self.guidelines.to_csv(
             "data/outputs/compliance/guidelines.csv", index=False
         )
-        self.check_compliance_rules()
+        compliance = self.check_compliance()
+        compliance.to_csv(
+            "data/outputs/compliance/compliance_checks.csv", index=False
+        )
 
 
 if __name__ == "__main__":
