@@ -698,8 +698,8 @@ class ComplianceReport(ReportGeneric):
         self.guidelines.to_csv(
             "data/outputs/compliance/guidelines.csv", index=False
         )
-        compliance = self.check_compliance()
-        compliance.to_csv(
+        self.check_compliance()
+        self.compliance_checks.to_csv(
             "data/outputs/compliance/compliance_checks.csv", index=False
         )
 
