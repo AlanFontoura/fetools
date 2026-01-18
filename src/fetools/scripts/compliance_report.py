@@ -23,6 +23,7 @@ class ComplianceReport(ReportGeneric):
         self._guidelines: pd.DataFrame = pd.DataFrame()
         self._risk_profiles: pd.DataFrame = pd.DataFrame()
         self.mandates: pd.DataFrame = pd.DataFrame()
+        self.compliance_checks: pd.DataFrame = pd.DataFrame()
 
     # endregion Initialization
 
@@ -487,7 +488,7 @@ class ComplianceReport(ReportGeneric):
 
     # region Check compliance
 
-    def check_compliance(self) -> pd.DataFrame:
+    def check_compliance(self) -> None:
         # Main guideline checks
         guideline_checks = self.check_all_guidelines()
 
@@ -516,7 +517,7 @@ class ComplianceReport(ReportGeneric):
             ignore_index=True,
         )
 
-        return compliance_checks
+        self.compliance_checks = compliance_checks
 
     def check_all_guidelines(self) -> pd.DataFrame:
         results = []
@@ -674,17 +675,18 @@ class ComplianceReport(ReportGeneric):
 
     # endregion Check compliance
 
+    # region Create report
+    def create_report(self) -> None:
+        pass
+
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
         # Don't worry about these copilot. These rows are here just to speed up the process while I test.
         # Final version will download all mandates, and there'll be no hardcoded file read.
-        # self.mandates = self.get_all_mandates(entity_ids)
-        # self.mandates.to_parquet(
-        #     "data/outputs/compliance/mandates.parquet", index=False
+        self.mandates = self.get_all_mandates(entity_ids)
+        # self.mandates = pd.read_parquet(
+        #     "data/outputs/compliance/mandates.parquet"
         # )
-        self.mandates = pd.read_parquet(
-            "data/outputs/compliance/mandates.parquet"
-        )
         self.format_mandate_data_frame()
         self.mandates.to_parquet(
             "data/outputs/compliance/mandates_formatted.parquet",
