@@ -495,7 +495,7 @@ class ComplianceReport(ReportGeneric):
         # Check other compliance rules
         rules = self.config.get("compliance_rules", {})
         if not rules:
-            return guideline_checks
+            return
 
         # Short positions
         short = self.check_negative_positions(
