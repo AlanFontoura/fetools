@@ -840,7 +840,7 @@ class ComplianceReport(ReportGeneric):
 
     # endregion Create report
 
-    # region Export report in excel
+    # region Generate excel file
     def export_report(self) -> None:
         file_name = f"Compliance Report - {self.base.get('client').title()} - {self.base.get('report_date')}.xlsx"
         file_path = f"data/outputs/compliance/{file_name}"
@@ -954,7 +954,7 @@ class ComplianceReport(ReportGeneric):
 
             worksheet.autofit()
 
-    # endregion Export report in excel
+    # endregion Generate excel file
 
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
