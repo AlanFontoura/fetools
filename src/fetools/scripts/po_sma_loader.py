@@ -223,3 +223,28 @@ def add_zero_entries_to_fco(
         .sort_values(by=["Owned", "Date", "Owner"])
         .reset_index(drop=True)
     )
+
+
+def adjust_fco_table(
+    df: pd.DataFrame,
+    cutoff_date: str,
+) -> pd.DataFrame:
+    """
+    Adjusts the ownership DataFrame by applying a cutoff date and adding zero
+    percentage entries.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
+    columns.
+    cutoff_date (str format, YYYY-MM-DD): The cutoff date to filter the DataFrame.
+
+    Returns:
+    pd.DataFrame: Adjusted DataFrame with applied cutoff date and added zero
+    percentage entries.
+    """
+    df = extend_ownership_table(df)
+    df = apply_cutoff_date_to_fco(df, cutoff_date)
+    df = add_zero_entries_to_fco(df)
+    return df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
+        drop=True
+    )

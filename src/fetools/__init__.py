@@ -6,6 +6,7 @@ from .scripts.po_sma_loader import (
     extend_ownership_table,
     apply_cutoff_date_to_fco,
     add_zero_entries_to_fco,
+    adjust_fco_table,
 )
 from .scripts.vnf import ValuesAndFlowsTools
 from .scripts.compliance_report import ComplianceReport
@@ -15,6 +16,7 @@ __all__ = [
     "extend_ownership_table",
     "apply_cutoff_date_to_fco",
     "add_zero_entries_to_fco",
+    "adjust_fco_table",
     "ValuesAndFlowsTools",
     "ComplianceReport",
     "BaseMain",
