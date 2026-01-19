@@ -1,10 +1,8 @@
 import pandas as pd
-import openpyxl
 import tomllib
 from fetools.scripts.base_main import ReportGeneric
 from multiprocess import Pool
 from tqdm import tqdm
-from pprint import pprint
 
 
 class ComplianceReport(ReportGeneric):
