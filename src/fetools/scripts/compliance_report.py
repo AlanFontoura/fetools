@@ -685,6 +685,7 @@ class ComplianceReport(ReportGeneric):
     def create_report(self) -> None:
         main_info = self.create_main_info()
         self.add_status_to_compliance()
+        self.apply_filtering_rules()
         self.create_final_report(main_info)
 
     def create_main_info(self) -> pd.DataFrame:
@@ -762,6 +763,7 @@ class ComplianceReport(ReportGeneric):
             "Status",
         ] = "Breached"
 
+    def apply_filtering_rules(self) -> None:
         filtering_rules = self.config.get("settings", {})
         if filtering_rules.get("ignore_warnings_near_zero", False):
             self.compliance_checks.loc[
@@ -835,6 +837,114 @@ class ComplianceReport(ReportGeneric):
 
     # endregion Create report
 
+    # region Export report in excel
+    def export_report_excel(self, file_path: str) -> None:
+        report_date = self.base.get("report_date", "")
+        sheetname = f"Compliance Report - {report_date}"
+        return_metrics = self.config.get("returns", [])
+        return_cols = [ret["name"] for ret in return_metrics]
+        with pd.ExcelWriter(file_path, engine="xlsxwriter") as writer:
+            self.final_report.to_excel(
+                writer,
+                sheet_name=sheetname,
+                index=False,
+            )
+
+            # Creating workbook instance and general cell formats
+            workbook = writer.book
+            format_pct = workbook.add_format({"num_format": "0.00%"})
+            format_pct.set_align("center")
+            format_cur = workbook.add_format({"num_format": "#,##0.00"})
+            format_center = workbook.add_format()
+            format_center.set_align("center")
+            format_red = workbook.add_format(
+                {"bg_color": "#FFC7CE", "font_color": "#9C0006"}
+            )
+            format_yellow = workbook.add_format(
+                {"bg_color": "#FFEB9C", "font_color": "#9C6500"}
+            )
+            format_green = workbook.add_format(
+                {"bg_color": "#D8E4BC", "font_color": "#00B050"}
+            )
+
+            worksheet = writer.sheets[sheetname]
+            worksheet.freeze_panes(1, 0)
+            worksheet.autofilter(
+                0,
+                0,
+                self.final_report.shape[0],
+                self.final_report.shape[1] - 1,
+            )
+
+            for col in ["Mandate MV", "Market Value"]:
+                col_idx = self.final_report.columns.get_loc(col)
+                worksheet.set_column(
+                    col_idx,
+                    col_idx,
+                    15,
+                    format_cur,
+                )
+
+            for col in return_cols + [
+                "Current Weight",
+                "Lower Limit",
+                "Upper Limit",
+            ]:
+                col_idx = self.final_report.columns.get_loc(col)
+                worksheet.set_column(
+                    col_idx,
+                    col_idx,
+                    15,
+                    format_pct,
+                )
+
+            status_col_idx = self.final_report.columns.get_loc("Status")
+            worksheet.conditional_format(
+                1,
+                status_col_idx,
+                self.final_report.shape[0],
+                status_col_idx,
+                {
+                    "type": "text",
+                    "criteria": "containing",
+                    "value": "Breached",
+                    "format": format_red,
+                },
+            )
+            worksheet.conditional_format(
+                1,
+                status_col_idx,
+                self.final_report.shape[0],
+                status_col_idx,
+                {
+                    "type": "text",
+                    "criteria": "containing",
+                    "value": "Warning",
+                    "format": format_yellow,
+                },
+            )
+            worksheet.conditional_format(
+                1,
+                status_col_idx,
+                self.final_report.shape[0],
+                status_col_idx,
+                {
+                    "type": "text",
+                    "criteria": "containing",
+                    "value": "On Target",
+                    "format": format_green,
+                },
+            )
+            worksheet.set_column(
+                status_col_idx, status_col_idx, None, format_center
+            )
+
+            worksheet.autofit()
+
+            pass
+
+    # endregion Export report in excel
+
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
         # Don't worry about these copilot. These rows are here just to speed up the process while I test.
@@ -856,6 +966,9 @@ class ComplianceReport(ReportGeneric):
         )
         self.check_compliance()
         self.create_report()
+        self.export_report_excel(
+            file_path="data/outputs/compliance/compliance_report.xlsx"
+        )
 
 
 if __name__ == "__main__":
