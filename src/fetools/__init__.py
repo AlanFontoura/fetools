@@ -2,21 +2,25 @@
 FE Tools: general financial engineering tools for daily routines.
 """
 
-from .po_sma_loader import (
-    extend_ownership_table,
-    apply_cutoff_date_to_fco,
-    add_zero_entries_to_fco,
+from .po_sma_tools import (
     adjust_fco_table,
+    add_accounts_to_fco,
+    Account,
+    Owner,
+    Structure,
+    Split,
 )
 from .vnf import ValuesAndFlowsTools
 from .compliance_report import ComplianceReport
 from .base_main import BaseMain
 
 __all__ = [
-    "extend_ownership_table",
-    "apply_cutoff_date_to_fco",
-    "add_zero_entries_to_fco",
     "adjust_fco_table",
+    "add_accounts_to_fco",
+    "Account",
+    "Owner",
+    "Structure",
+    "Split",
     "ValuesAndFlowsTools",
     "ComplianceReport",
     "BaseMain",
