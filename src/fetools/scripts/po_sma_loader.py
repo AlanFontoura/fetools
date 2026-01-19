@@ -121,3 +121,30 @@ def simple_ownership_of_ownership(df: pd.DataFrame) -> pd.DataFrame:
         ["Owner", "Owned", "Date", "Percentage"]
     ]
     return ownership_of_ownership
+
+
+def apply_cutoff_date_to_fco(
+    df: pd.DataFrame, cutoff_date: str
+) -> pd.DataFrame:
+    """
+    Applies a cutoff date to the ownership DataFrame
+    On the cutoff date, only the latest entry prior to or on the cutoff date
+    is kept for each Owned-Owner pair. Entries after the cutoff date are kept as is
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing 'Date' column.
+    cutoff_date (str format, YYYY-MM-DD): The cutoff date to filter the DataFrame.
+
+    Returns:
+    pd.DataFrame: Filtered DataFrame with entries on or after the cutoff date.
+    """
+    df = df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(drop=True)
+    after = df[df["Date"] > cutoff_date]
+    prior = df[df["Date"] <= cutoff_date]
+    if not prior.empty:
+        prior = prior.drop_duplicates(subset=["Owned", "Owner"], keep="last")
+        prior["Date"] = cutoff_date
+    df = pd.concat([prior, after], ignore_index=True)
+    return df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
+        drop=True
+    )
