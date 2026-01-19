@@ -3,6 +3,7 @@ import tomllib
 from fetools.scripts.base_main import ReportGeneric
 from multiprocess import Pool
 from tqdm import tqdm
+import os
 
 
 class ComplianceReport(ReportGeneric):
@@ -958,4 +959,5 @@ if __name__ == "__main__":
     compliance = ComplianceReport(
         config_file="data/inputs/compliance/compliance.toml"
     )
+    os.makedirs("data/outputs/compliance/", exist_ok=True)
     compliance.main()  # This initializes the API and logs in
