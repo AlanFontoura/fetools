@@ -25,6 +25,7 @@ class ComplianceReport(ReportGeneric):
         self._risk_profiles: pd.DataFrame = pd.DataFrame()
         self.mandates: pd.DataFrame = pd.DataFrame()
         self.compliance_checks: pd.DataFrame = pd.DataFrame()
+        self.final_report: pd.DataFrame = pd.DataFrame()
 
     # endregion Initialization
 
@@ -684,10 +685,7 @@ class ComplianceReport(ReportGeneric):
     def create_report(self) -> None:
         main_info = self.create_main_info()
         self.add_status_to_compliance()
-        final_report = self.create_final_report(main_info)
-        final_report.to_csv(
-            "data/outputs/compliance/compliance_report.csv", index=False
-        )
+        self.create_final_report(main_info)
 
     def create_main_info(self) -> pd.DataFrame:
         from_guidelines = (
@@ -792,7 +790,7 @@ class ComplianceReport(ReportGeneric):
                 self.compliance_checks["Status"] != "On Target"
             ].reset_index(drop=True)
 
-    def create_final_report(self, main_info: pd.DataFrame) -> pd.DataFrame:
+    def create_final_report(self, main_info: pd.DataFrame) -> None:
         return_metrics = self.config.get("returns", [])
         return_cols = [ret["name"] for ret in return_metrics]
         final_report = pd.concat(
@@ -833,7 +831,9 @@ class ComplianceReport(ReportGeneric):
         )
         for col in ["Mandate Name", "Risk Profile"]:
             final_report[col] = final_report[col].ffill()
-        return final_report
+        self.final_report = final_report
+
+    # endregion Create report
 
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
