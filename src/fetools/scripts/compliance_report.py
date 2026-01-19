@@ -641,6 +641,9 @@ class ComplianceReport(ReportGeneric):
                 concentration["Market Value"] / concentration["Mandate MV"], 4
             )
             concentration["Compliance Rule"] = "Concentration"
+            concentration = concentration.rename(
+                columns={"Instrument ID": "Compliance Item"}
+            )
             concentration["Upper Limit"] = concentration_rules["all"]
             concentration = concentration[
                 concentration["Current Weight"] > concentration["Upper Limit"]
