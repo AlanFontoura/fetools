@@ -81,6 +81,7 @@ def extend_ownership_table(df: pd.DataFrame) -> pd.DataFrame:
             keep_going = False
         else:
             number_of_entries = df.shape[0]
+    df["Percentage"] = df["Percentage"].round(4)
     return df.sort_values(by=["Owned", "Owner", "Date"]).reset_index(
         drop=True
     )
@@ -190,9 +191,7 @@ def add_zero_entries_to_owner(
                     pd.DataFrame,
                     pd.concat([fco, new_entry], ignore_index=True),
                 )
-        current_owners = (
-            fco.loc[fco["Date"] == date, "Owner"].unique().tolist()
-        )
+        current_owners = owners_at_date
     return fco.sort_values(by=["Date", "Owner"]).reset_index(drop=True)
 
 
