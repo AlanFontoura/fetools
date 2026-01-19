@@ -1,6 +1,6 @@
 import pandas as pd
 import tomllib
-from fetools.scripts.base_main import ReportGeneric
+from fetools.base_main import ReportGeneric
 from multiprocess import Pool
 from tqdm import tqdm
 import os

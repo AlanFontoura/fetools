@@ -9,8 +9,8 @@ from tqdm import tqdm
 from multiprocess import Pool
 from typing import Union, Optional, Any
 from functools import partial
-from fetools.scripts.d1g1tparser import ChartTableFormatter
-from fetools.scripts.exceptions import NoResponseError
+from fetools.d1g1tparser import ChartTableFormatter
+from fetools.exceptions import NoResponseError
 
 
 from drf_client.connection import (  # type: ignore[import-untyped]

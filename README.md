@@ -34,13 +34,13 @@ import fetools as fe
 
 2. As single tools
 ```python
-from fetools.scripts.vnf import VnFFileGenerator
-from fetools.preprocess.gresham import PreProcessVnFData
+from fetools.vnf import ValuesAndFlowsTools
+from fetools.po_sma_loader import extend_ownership_table
 ```
 
 3. From command line
 ```
-python -m fetools.scripts.vnf.vnf_v52 --params here
+python -m fetools.vnf --params here
 ```
 
 ## Scripts & Tools
