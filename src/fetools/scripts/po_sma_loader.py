@@ -5,7 +5,7 @@ Partial Ownership and SMA setup
 
 import pandas as pd
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass(frozen=True)
@@ -147,4 +147,79 @@ def apply_cutoff_date_to_fco(
     df = pd.concat([prior, after], ignore_index=True)
     return df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
         drop=True
+    )
+
+
+def add_zero_entries_to_owner(
+    fco: pd.DataFrame = pd.DataFrame(),
+) -> pd.DataFrame:
+    """
+    Adds zero percentage entries to the ownership DataFrame
+    for all combinations of Owners and Owned entities that do not exist in the DataFrame.
+
+    Parameters:
+    fco (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
+    columns for a single 'Owned' entity.
+
+    Returns:
+    pd.DataFrame: DataFrame with added zero percentage entries.
+    """
+    if fco.empty:
+        return fco
+    dates = fco["Date"].unique().tolist()
+    dates.sort()
+    owned = fco["Owned"].iloc[0]
+    current_owners = (
+        fco.loc[fco["Date"] == dates[0], "Owner"].unique().tolist()
+    )
+    for date in dates[1:]:
+        owners_at_date = (
+            fco.loc[fco["Date"] == date, "Owner"].unique().tolist()
+        )
+        for owner in current_owners:
+            if owner not in owners_at_date:
+                new_entry = pd.DataFrame(
+                    {
+                        "Owner": [owner],
+                        "Owned": [owned],
+                        "Date": [date],
+                        "Percentage": [0.0],
+                    }
+                )
+                fco = cast(
+                    pd.DataFrame,
+                    pd.concat([fco, new_entry], ignore_index=True),
+                )
+        current_owners = (
+            fco.loc[fco["Date"] == date, "Owner"].unique().tolist()
+        )
+    return fco.sort_values(by=["Date", "Owner"]).reset_index(drop=True)
+
+
+def add_zero_entries_to_fco(
+    df: pd.DataFrame = pd.DataFrame(),
+) -> pd.DataFrame:
+    """
+    Adds zero percentage entries to the ownership DataFrame
+    for all combinations of Owners and Owned entities that do not exist in the DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
+    columns.
+
+    Returns:
+    pd.DataFrame: DataFrame with added zero percentage entries.
+    """
+    if df.empty:
+        return df
+    fco_groups = []
+    owned_entities = df["Owned"].unique().tolist()
+    for owned in owned_entities:
+        fco_owned = df[df["Owned"] == owned].reset_index(drop=True)
+        fco_owned_extended = add_zero_entries_to_owner(fco_owned)
+        fco_groups.append(fco_owned_extended)
+    return (
+        pd.concat(fco_groups, ignore_index=True)
+        .sort_values(by=["Owned", "Date", "Owner"])
+        .reset_index(drop=True)
     )
