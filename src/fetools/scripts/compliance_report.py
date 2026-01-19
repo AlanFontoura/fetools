@@ -4,6 +4,7 @@ from fetools.scripts.base_main import ReportGeneric
 from multiprocess import Pool
 from tqdm import tqdm
 import os
+import awswrangler as wr
 
 
 class ComplianceReport(ReportGeneric):
@@ -840,7 +841,17 @@ class ComplianceReport(ReportGeneric):
     # endregion Create report
 
     # region Export report in excel
-    def export_report_excel(self, file_path: str) -> None:
+    def export_report(self) -> None:
+        file_name = f"Compliance Report - {self.base.get('client').title()} - {self.base.get('report_date')}.xlsx"
+        file_path = f"data/outputs/compliance/{file_name}"
+        self.create_excel_report(file_path)
+        if "s3_folder" in self.base:
+            wr.s3.upload(
+                local_file=file_path,
+                path=f"s3://{self.base.get('s3_folder')}/{file_name}",
+            )
+
+    def create_excel_report(self, file_path: str) -> None:
         report_date = self.base.get("report_date", "")
         sheetname = f"Compliance Report - {report_date}"
         return_metrics = self.config.get("returns", [])
@@ -943,8 +954,6 @@ class ComplianceReport(ReportGeneric):
 
             worksheet.autofit()
 
-            pass
-
     # endregion Export report in excel
 
     def after_login(self) -> None:
@@ -953,9 +962,7 @@ class ComplianceReport(ReportGeneric):
         self.format_mandate_data_frame()
         self.check_compliance()
         self.create_report()
-        self.export_report_excel(
-            file_path=f"data/outputs/compliance/Compliance Report - {self.base.get('client').title()} - {self.base.get('report_date')}.xlsx"
-        )
+        self.export_report()
 
 
 if __name__ == "__main__":
