@@ -845,10 +845,14 @@ class ComplianceReport(ReportGeneric):
         file_name = f"Compliance Report - {self.base.get('client').title()} - {self.base.get('report_date')}.xlsx"
         file_path = f"data/outputs/compliance/{file_name}"
         self.create_excel_report(file_path)
+        print(f"Report saved to {file_path}")
         if "s3_folder" in self.base:
             wr.s3.upload(
                 local_file=file_path,
                 path=f"s3://{self.base.get('s3_folder')}/{file_name}",
+            )
+            print(
+                f"Report uploaded to s3://{self.base.get('s3_folder')}/{file_name}"
             )
 
     def create_excel_report(self, file_path: str) -> None:
