@@ -947,32 +947,17 @@ class ComplianceReport(ReportGeneric):
 
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
-        # Don't worry about these copilot. These rows are here just to speed up the process while I test.
-        # Final version will download all mandates, and there'll be no hardcoded file read.
-        # self.get_all_mandates(entity_ids)
-        # self.format_mandate_data_frame()
-        # self.mandates.to_parquet(
-        #     "data/outputs/compliance/mandates_formatted.parquet",
-        #     index=False,
-        # )
-        self.mandates = pd.read_parquet(
-            "data/outputs/compliance/mandates_formatted.parquet"
-        )
-        self.mandates.to_csv(
-            "data/outputs/compliance/mandates_formatted.csv", index=False
-        )
-        self.guidelines.to_csv(
-            "data/outputs/compliance/guidelines.csv", index=False
-        )
+        self.get_all_mandates(entity_ids)
+        self.format_mandate_data_frame()
         self.check_compliance()
         self.create_report()
         self.export_report_excel(
-            file_path="data/outputs/compliance/compliance_report.xlsx"
+            file_path=f"data/outputs/compliance/Compliance Report - {self.base.get('client').title()} - {self.base.get('report_date')}.xlsx"
         )
 
 
 if __name__ == "__main__":
-    crm = ComplianceReport(
+    compliance = ComplianceReport(
         config_file="data/inputs/compliance/compliance.toml"
     )
-    crm.main()  # This initializes the API and logs in
+    compliance.main()  # This initializes the API and logs in
