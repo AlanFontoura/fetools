@@ -1,4 +1,5 @@
 import pandas as pd
+import openpyxl
 import tomllib
 from fetools.scripts.base_main import ReportGeneric
 from multiprocess import Pool
@@ -250,6 +251,7 @@ class ComplianceReport(ReportGeneric):
                 [
                     "Entity",
                     "FPK",
+                    "Name",
                     "Client",
                     "Investment Guideline Grouping",
                     "Comparison Value",
@@ -262,6 +264,7 @@ class ComplianceReport(ReportGeneric):
                 columns={
                     "Entity": "entity_id",
                     "FPK": "Mandate ID",
+                    "Name": "Mandate Name",
                     "Client": "Client ID",
                     "Investment Guideline Grouping": "Level",
                     "Comparison Value": "Comparison",
@@ -288,6 +291,7 @@ class ComplianceReport(ReportGeneric):
                 [
                     "entity_id",
                     "Mandate ID",
+                    "Mandate Name",
                     "Risk Profile",
                     "Client ID",
                     "Client Name",
@@ -324,7 +328,7 @@ class ComplianceReport(ReportGeneric):
             )
         return self._risk_profiles
 
-    def get_all_mandates(self, entity_ids: list[str]) -> pd.DataFrame:
+    def get_all_mandates(self, entity_ids: list[str]) -> None:
         print("Downloading mandate data...")
         print(f"Total mandates to process: {len(entity_ids)}")
         with Pool() as pool:
@@ -336,7 +340,7 @@ class ComplianceReport(ReportGeneric):
             )
         res = [df for df in res if not df.empty]
         combined_df: pd.DataFrame = pd.concat(res, ignore_index=True)
-        return combined_df
+        self.mandates = combined_df
 
     def get_mandate_data(self, entity_id: str) -> pd.DataFrame:
         try:
@@ -544,8 +548,9 @@ class ComplianceReport(ReportGeneric):
         guideline_values = guideline_values.merge(
             mandate_values, how="left", on="Mandate ID"
         )
-        guideline_values["Current Weight"] = (
-            guideline_values["Market Value"] / guideline_values["Mandate MV"]
+        guideline_values["Current Weight"] = round(
+            guideline_values["Market Value"] / guideline_values["Mandate MV"],
+            4,
         )
         guideline_values = guideline_values.rename(
             columns={guideline_column: "Compliance Item"}
@@ -632,8 +637,8 @@ class ComplianceReport(ReportGeneric):
             concentration = self.mandates[
                 ["Mandate ID", "Instrument ID", "Market Value", "Mandate MV"]
             ].copy()
-            concentration["Current Weight"] = (
-                concentration["Market Value"] / concentration["Mandate MV"]
+            concentration["Current Weight"] = round(
+                concentration["Market Value"] / concentration["Mandate MV"], 4
             )
             concentration["Compliance Rule"] = "Concentration"
             concentration["Upper Limit"] = concentration_rules["all"]
@@ -653,8 +658,8 @@ class ComplianceReport(ReportGeneric):
             concentration_limits, how="left", on="Risk Profile"
         )
         concentration = concentration[concentration["Upper Limit"].notna()]
-        concentration["Current Weight"] = (
-            concentration["Market Value"] / concentration["Mandate MV"]
+        concentration["Current Weight"] = round(
+            concentration["Market Value"] / concentration["Mandate MV"], 4
         )
         concentration = concentration.loc[
             concentration["Current Weight"] > concentration["Upper Limit"],
@@ -677,20 +682,171 @@ class ComplianceReport(ReportGeneric):
 
     # region Create report
     def create_report(self) -> None:
-        pass
+        main_info = self.create_main_info()
+        self.add_status_to_compliance()
+        final_report = self.create_final_report(main_info)
+        final_report.to_csv(
+            "data/outputs/compliance/compliance_report.csv", index=False
+        )
+
+    def create_main_info(self) -> pd.DataFrame:
+        from_guidelines = (
+            self.guidelines[
+                [
+                    "Mandate ID",
+                    "Mandate Name",
+                    "Risk Profile",
+                    "Client ID",
+                    "Client Name",
+                ]
+            ]
+            .drop_duplicates()
+            .sort_values(["Mandate ID"])
+            .reset_index(drop=True)
+        )
+        selected_returns = self.config.get("returns", [])
+        return_cols = [ret["name"] for ret in selected_returns]
+        from_mandates = (
+            self.mandates[
+                ["Mandate ID", "Rep Code", "Mandate MV"] + return_cols
+            ]
+            .drop_duplicates()
+            .sort_values(["Mandate ID"])
+            .reset_index(drop=True)
+        )
+        main_info = from_mandates.merge(
+            from_guidelines, how="left", on="Mandate ID"
+        )
+        return main_info
+
+    def add_status_to_compliance(self) -> None:
+        if self.compliance_checks.empty:
+            return
+        self.compliance_checks["Status"] = "Warning"
+        self.compliance_checks["Limit Tolerance"] = self.compliance_checks[
+            "Limit Tolerance"
+        ].fillna(0)
+        self.compliance_checks.loc[
+            (
+                self.compliance_checks["Current Weight"]
+                < self.compliance_checks["Lower Limit"]
+            )
+            | (
+                self.compliance_checks["Current Weight"]
+                > self.compliance_checks["Upper Limit"]
+            ),
+            "Status",
+        ] = "Breached"
+        self.compliance_checks.loc[
+            (
+                self.compliance_checks["Current Weight"]
+                >= (
+                    self.compliance_checks["Lower Limit"]
+                    + self.compliance_checks["Limit Tolerance"]
+                )
+            )
+            & (
+                self.compliance_checks["Current Weight"]
+                <= (
+                    self.compliance_checks["Upper Limit"]
+                    - self.compliance_checks["Limit Tolerance"]
+                )
+            ),
+            "Status",
+        ] = "On Target"
+        self.compliance_checks.loc[
+            self.compliance_checks["Upper Limit"].isna(), "Status"
+        ] = "No Guidelines"
+        self.compliance_checks.loc[
+            self.compliance_checks["Compliance Rule"].isin(
+                ["Leverage", "Short Position"]
+            ),
+            "Status",
+        ] = "Breached"
+
+        filtering_rules = self.config.get("settings", {})
+        if filtering_rules.get("ignore_warnings_near_zero", False):
+            self.compliance_checks.loc[
+                (self.compliance_checks["Status"] == "Warning")
+                & (self.compliance_checks["Lower Limit"] == 0)
+                & (
+                    self.compliance_checks["Current Weight"]
+                    <= self.compliance_checks["Limit Tolerance"]
+                ),
+                "Status",
+            ] = "On Target"
+
+        if filtering_rules.get("ignore_warnings_near_one_hundred", False):
+            self.compliance_checks.loc[
+                (self.compliance_checks["Status"] == "Warning")
+                & (self.compliance_checks["Upper Limit"] == 1)
+                & (
+                    self.compliance_checks["Current Weight"]
+                    >= (1 - self.compliance_checks["Limit Tolerance"])
+                ),
+                "Status",
+            ] = "On Target"
+
+        if filtering_rules.get("hide_compliant_items", False):
+            self.compliance_checks = self.compliance_checks[
+                self.compliance_checks["Status"] != "On Target"
+            ].reset_index(drop=True)
+
+    def create_final_report(self, main_info: pd.DataFrame) -> pd.DataFrame:
+        return_metrics = self.config.get("returns", [])
+        return_cols = [ret["name"] for ret in return_metrics]
+        final_report = pd.concat(
+            [main_info, self.compliance_checks], ignore_index=True
+        )
+        cols = (
+            [
+                "Mandate ID",
+                "Mandate Name",
+                "Risk Profile",
+                "Rep Code",
+                "Client ID",
+                "Client Name",
+            ]
+            + return_cols
+            + [
+                "Mandate MV",
+                "Market Value",
+                "Compliance Rule",
+                "Compliance Item",
+                "Status",
+                "Current Weight",
+                "Lower Limit",
+                "Upper Limit",
+            ]
+        )
+        final_report = (
+            final_report[cols]
+            .sort_values(
+                [
+                    "Mandate ID",
+                    "Client ID",
+                    "Compliance Rule",
+                    "Compliance Item",
+                ]
+            )
+            .reset_index(drop=True)
+        )
+        for col in ["Mandate Name", "Risk Profile"]:
+            final_report[col] = final_report[col].ffill()
+        return final_report
 
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
         # Don't worry about these copilot. These rows are here just to speed up the process while I test.
         # Final version will download all mandates, and there'll be no hardcoded file read.
-        self.mandates = self.get_all_mandates(entity_ids)
-        # self.mandates = pd.read_parquet(
-        #     "data/outputs/compliance/mandates.parquet"
+        # self.get_all_mandates(entity_ids)
+        # self.format_mandate_data_frame()
+        # self.mandates.to_parquet(
+        #     "data/outputs/compliance/mandates_formatted.parquet",
+        #     index=False,
         # )
-        self.format_mandate_data_frame()
-        self.mandates.to_parquet(
-            "data/outputs/compliance/mandates_formatted.parquet",
-            index=False,
+        self.mandates = pd.read_parquet(
+            "data/outputs/compliance/mandates_formatted.parquet"
         )
         self.mandates.to_csv(
             "data/outputs/compliance/mandates_formatted.csv", index=False
@@ -699,9 +855,7 @@ class ComplianceReport(ReportGeneric):
             "data/outputs/compliance/guidelines.csv", index=False
         )
         self.check_compliance()
-        self.compliance_checks.to_csv(
-            "data/outputs/compliance/compliance_checks.csv", index=False
-        )
+        self.create_report()
 
 
 if __name__ == "__main__":
