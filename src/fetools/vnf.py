@@ -7,6 +7,53 @@ import pandas as pd
 import tomllib
 from pathlib import Path
 from datetime import datetime, timedelta
+from dataclasses import dataclass
+from pprint import pprint
+
+
+@dataclass
+class ColumnConfig:
+    column_name: str
+    value: str | float | None = None
+    source_column: str | None = None
+
+
+# region DataFrame modification functions
+def modify_dataframe(
+    df: pd.DataFrame,
+    configs: list[ColumnConfig],
+) -> pd.DataFrame:
+    for config in configs:
+        df = modify_column(df, config)
+    return df
+
+
+def modify_column(
+    df: pd.DataFrame,
+    column_config: ColumnConfig,
+) -> pd.DataFrame:
+    if column_config.value is not None:
+        df[column_config.column_name] = column_config.value
+    elif column_config.source_column is not None:
+        df[column_config.column_name] = df[column_config.source_column]
+    return df
+
+
+def copy_column(
+    df: pd.DataFrame, column_name: str, source_column: str
+) -> pd.DataFrame:
+    df[column_name] = df[source_column]
+    return df
+
+
+def create_column(
+    df: pd.DataFrame, column_name: str, default_value: Any
+) -> pd.DataFrame:
+    df[column_name] = default_value
+    return df
+
+
+# endregion
 
 
 class BaseTransformer:
@@ -25,7 +72,7 @@ class BaseTransformer:
         self.df[column_name] = self.df[source_column]
         return self.df
 
-    def transform(self, configs: list[dict[str, Any]]) -> pd.DataFrame:
+    def transform(self, configs: list[ColumnConfig]) -> pd.DataFrame:
         columns = []
         for config in configs:
             columns.append(config["column_name"])
@@ -150,6 +197,6 @@ class ValuesAndFlowsTools:
 
 if __name__ == "__main__":
     # Example usage
-    with open("config.toml", "rb") as f:
+    with open("data/inputs/vnf/gresham/vnf.toml", "rb") as f:
         config = tomllib.load(f)
-    print(config)
+    pprint(config)
