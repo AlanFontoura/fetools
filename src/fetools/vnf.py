@@ -1,288 +1,123 @@
-"""
-Tools to create VnF importers
-"""
-
-from typing import Any
 import pandas as pd
 import tomllib
-from pathlib import Path
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from pprint import pprint
-import os
+from typing import Any
 
 
-@dataclass
-class ColumnConfig:
-    column_name: str | float | None = None
-    value: str | float | None = None
-    source_column: str | float | None = None
+def load_vnf_config(toml_file_path: str) -> dict[str, Any]:
+    with open(toml_file_path, "rb") as file:
+        config_data = tomllib.load(file)
+
+    return config_data
 
 
-# region Base data functions
-def get_base_data(configs: dict[str, Any]) -> pd.DataFrame:
-    df = read_data(configs)
-    df = rename_data(df, configs)
-    df = filter_data(df, configs)
-    df = df.sort_values(by=["Account ID", "Date"]).reset_index(drop=True)
-    return df
+class ValuesAndFlows:
+    def __init__(self, config_file_path: str):
+        self.config: dict[str, Any] = load_vnf_config(config_file_path)
+        self._df: pd.DataFrame | None = None
 
+    @property
+    def df(self) -> pd.DataFrame:
+        if self._df is None:
+            df = pd.read_csv(self.config["base"]["data"])
+            df = self.modify_dataframe(df)
+            household_mapping = self.create_household_mapping(df)
+            df = df.merge(household_mapping, on="household_id", how="left")
+            df = self.add_transfers_in(df)
+            df = self.add_zero_entries_for_closed_accounts(df)
+            self._df = df
+        return self._df
 
-def read_data(configs: dict[str, Any]) -> pd.DataFrame:
-    if str(configs.get("base_data")).startswith("s3"):
-        df = pd.read_csv(str(configs.get("base_data")))
+    def modify_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        for new_col, current_col in self.config.get("columns", {}).items():
+            df[new_col] = df[current_col] if current_col else 0
+        df = df[self.config.get("columns", {}).keys()]
+        df = df[
+            df["date"]
+            <= self.config.get("base", {}).get("stitching_date", "9999-12-31")
+        ]
+        df = df.sort_values(
+            by=["household_id", "account_id", "date"]
+        ).reset_index(drop=True)
         return df
-    file_path = Path(
-        "data",
-        "inputs",
-        "vnf",
-        configs["client"],
-        configs["base_data"],
-    )
-    if str(file_path).endswith(".csv"):
-        df = pd.read_csv(str(file_path))
-    if str(file_path).endswith(".parquet"):
-        df = pd.read_parquet(str(file_path))
-    return df
 
+    def create_household_mapping(self, df: pd.DataFrame) -> pd.DataFrame:
+        household_mapping = (
+            df[["household_id"]].drop_duplicates().reset_index(drop=True)
+        )
+        household_mapping["hh_index"] = household_mapping.index
+        return household_mapping
 
-def rename_data(df: pd.DataFrame, configs: dict[str, Any]) -> pd.DataFrame:
-    mapping = configs.get("column_mappings", {})
-    if not mapping:
+    def add_transfers_in(self, df: pd.DataFrame) -> pd.DataFrame:
+        first_rows = df.groupby("account_id").head(1).index
+        df.loc[first_rows, "opr_transfer"] = (
+            df.loc[first_rows, "market_value"]
+            - df.loc[first_rows, "fin_transfer"]
+        )
+
         return df
-    for new_col, old_col in mapping.items():
-        df.rename(columns={old_col: new_col}, inplace=True)
-    return df
 
+    def add_zero_entries_for_closed_accounts(
+        self, df: pd.DataFrame
+    ) -> pd.DataFrame:
+        df["date"] = pd.to_datetime(df["date"])
+        last_entries = df.groupby("account_id").tail(1).copy()
+        last_entries["date"] = last_entries["date"] + pd.offsets.MonthEnd(1)
+        last_entries["opr_transfer"] = -1 * last_entries["market_value"]
+        last_entries[
+            [
+                "market_value",
+                "fin_transfer",
+                "fin_transfer_in",
+                "fees",
+                "expenses",
+                "returns",
+            ]
+        ] = 0
+        df = pd.concat([df, last_entries], ignore_index=True)
+        df = df[
+            df["date"]
+            <= self.config.get("base", {}).get("stitching_date", "9999-12-31")
+        ]
+        df = df.sort_values(
+            by=["hh_index", "account_id", "date"]
+        ).reset_index(drop=True)
 
-def filter_data(df: pd.DataFrame, configs: dict[str, Any]) -> pd.DataFrame:
-    stitch_date = configs.get("stitch_date", None)
-    if not stitch_date:
         return df
-    df = df[df["Date"] <= stitch_date].reset_index(drop=True)
-    return df
 
 
-# endregion
+class Inputs:
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
 
 
-# region Configuration creation functions
-def create_file_configs(configs: list[dict[str, Any]]) -> list[ColumnConfig]:
-    return [create_column_config(config) for config in configs]
+class Portfolios:
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
 
-
-def create_column_config(
-    config: dict[str, str | float | None],
-) -> ColumnConfig:
-    return ColumnConfig(
-        column_name=config.get("column_name"),
-        value=config.get("value", None),
-        source_column=config.get("source_column", None),
-    )
-
-
-# endregion
-
-
-# region DataFrame modification functions
-def modify_dataframe(
-    df: pd.DataFrame,
-    configs: list[ColumnConfig],
-) -> pd.DataFrame:
-    cols = [config.column_name for config in configs]
-    for config in configs:
-        df = modify_column(df, config)
-    df = df[cols].drop_duplicates().reset_index(drop=True)
-    return df
-
-
-def modify_column(
-    df: pd.DataFrame,
-    column_config: ColumnConfig,
-) -> pd.DataFrame:
-    if column_config.value is not None:
-        df[column_config.column_name] = column_config.value
-    elif column_config.source_column is not None:
-        df[column_config.column_name] = df[column_config.source_column]
-    return df
-
-
-def copy_column(
-    df: pd.DataFrame, column_name: str, source_column: str
-) -> pd.DataFrame:
-    df[column_name] = df[source_column]
-    return df
-
-
-def create_column(
-    df: pd.DataFrame, column_name: str, default_value: Any
-) -> pd.DataFrame:
-    df[column_name] = default_value
-    return df
-
-
-# endregion
-
-
-# Create input files
-## Add net inflow when account is opened
-## Add zero entries when account is closed
-## Add net cashflow when account is closed
-## Calculate DateCashFrTrades based on provided returns
-## Add COMPL and MAIN rows
-
-# Create portfolio files
-# Create portfolio configurations
-
-# Create transfer out transactions
-
-
-# Sort data frame
-# Filter by stitch date
-# Adjust last date
-# Save data
-def save_all_files(
-    inputs: pd.DataFrame,
-    portfolios: pd.DataFrame,
-    bookvalues: pd.DataFrame,
-    configs: dict[str, Any],
-) -> None:
-    number_of_households = len(
-        get_household_mapping(configs, "Portfolio Firm Provided Key")[
-            "Household ID"
-        ].unique()
-    )
-    create_folder_structure(configs, number_of_households)
-    save_inputs(inputs, configs)
-    save_portfolios(portfolios, configs)
-    currency_list = configs.get("currency_list", ["USD"])
-    for currency in currency_list:
-        save_bookvalues(bookvalues, configs, currency)
-
-
-def save_inputs(df: pd.DataFrame, configs: dict[str, Any]) -> None:
-    output_folder = get_output_folder(configs)
-    output_path = Path(output_folder, "inputs")
-    household_mapping = get_household_mapping(
-        configs, "Portfolio Firm Provided Key"
-    )
-    df = df.merge(
-        household_mapping, how="left", on="Portfolio Firm Provided Key"
-    )
-    households = df["Household ID"].unique().tolist()
-    for index, household in enumerate(households):
-        household_df = df[df["Household ID"] == household].drop(
-            columns=["Household ID"]
+    def create_portfolios_file(self):
+        portfolios = (
+            self.df[["account_id", "index"]]
+            .drop_duplicates()
+            .reset_index(drop=True)
         )
-        save_data(
-            household_df,
-            output_path,
-            "own-analytics-set",
-            index,
+        portfolios["account_id"] = [
+            f"{acc}_PrimarySleeve" for acc in portfolios["account_id"]
+        ]
+        portfolios = portfolios.rename(
+            columns={"account_id": "Firm Provided Key"}
         )
+        return portfolios
 
 
-def save_portfolios(df: pd.DataFrame, configs: dict[str, Any]) -> None:
-    output_folder = get_output_folder(configs)
-    output_path = Path(output_folder, "portfolios")
-    household_mapping = get_household_mapping(configs, "Firm Provided Key")
-    df = df.merge(household_mapping, how="left", on="Firm Provided Key")
-    households = df["Household ID"].unique().tolist()
-    for index, household in enumerate(households):
-        household_df = df[df["Household ID"] == household].drop(
-            columns=["Household ID"]
-        )
-        save_data(household_df, output_path, "portfolio-set", index)
+class BookValues:
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
 
-
-def save_bookvalues(
-    df: pd.DataFrame, configs: dict[str, Any], currency: str
-) -> None:
-    output_folder = get_output_folder(configs)
-    output_path = Path(output_folder, "bookvalues")
-    household_mapping = get_household_mapping(configs, "PortfolioID")
-    df = df.merge(household_mapping, how="left", on="PortfolioID")
-    households = df["Household ID"].unique().tolist()
-    for index, household in enumerate(households):
-        household_df = df[df["Household ID"] == household].drop(
-            columns=["Household ID"]
-        )
-        save_data(
-            household_df,
-            Path(output_path, f"bv-set-{index}"),
-            "bv-set",
-            index,
-        )
-
-
-def save_data(
-    df: pd.DataFrame,
-    folder: Path,
-    filename: str,
-    index: int,
-    currency: str | None = None,
-) -> None:
-    output_file = Path(folder, f"{filename}-{index}.csv")
-    if currency:
-        output_file = Path(folder, f"{filename}-{index}_{currency}.csv")
-    df.to_csv(output_file, index=False)
-
-
-def create_folder_structure(
-    configs: dict[str, Any], number_of_households: int
-) -> None:
-    output_folder = get_output_folder(configs)
-    if output_folder.startswith("s3"):
-        return
-    os.makedirs(output_folder, exist_ok=True)
-    os.makedirs(Path(output_folder, "inputs"), exist_ok=True)
-    os.makedirs(Path(output_folder, "portfolios"), exist_ok=True)
-    for i in range(number_of_households):
-        os.makedirs(
-            Path(output_folder, "bookvalues", f"bv-set-{i}"), exist_ok=True
-        )
-
-
-def get_output_folder(configs: dict[str, Any]) -> str:
-    client = configs.get("client", "unknown_client")
-    output_folder = configs.get("output_folder", None)
-    if not output_folder:
-        output_path = Path("data", "outputs", "vnf", client)
-        return str(output_path)
-    return str(output_folder)
-
-
-def get_household_mapping(
-    configs: dict[str, Any], account_col_name: str
-) -> pd.DataFrame:
-    if str(configs.get("household_mapping")).startswith("s3"):
-        df = pd.read_csv(str(configs.get("household_mapping")))
-        return df.rename(columns={"Account ID": account_col_name})
-    file_path = Path(
-        "data",
-        "inputs",
-        "vnf",
-        configs["client"],
-        configs["household_mapping"],
-    )
-    if str(file_path).endswith(".csv"):
-        df = pd.read_csv(str(file_path))
-    if str(file_path).endswith(".parquet"):
-        df = pd.read_parquet(str(file_path))
-    return df.rename(columns={"Account ID": account_col_name})
+    def create_book_values_file(self):
+        pass
 
 
 if __name__ == "__main__":
-    # Example usage
-    with open("data/inputs/vnf/gresham/vnf.toml", "rb") as f:
-        config = tomllib.load(f)
-    pprint(config)
-    df = get_base_data(config)
-    inputs = modify_dataframe(df, create_file_configs(config["inputs"]))
-    portfolios = modify_dataframe(
-        df, create_file_configs(config["portfolios"])
-    )
-    bookvalues = modify_dataframe(
-        df, create_file_configs(config["bookvalues"])
-    )
-    save_all_files(inputs, portfolios, bookvalues, config)
+    vnf = ValuesAndFlows("data/inputs/vnf/gresham/vnf.toml")
+    print(vnf.df.head(20))
+    print(vnf.df.shape[0])
