@@ -9,7 +9,7 @@ from tqdm import tqdm
 from multiprocess import Pool
 from typing import Union, Optional, Any
 from functools import partial
-from fetools.d1g1tparser import ChartTableFormatter
+from fetools.transformers.d1g1tparser import ChartTableFormatter
 from fetools.exceptions import NoResponseError
 
 

@@ -12,7 +12,7 @@ def load_vnf_config(toml_file_path: str) -> dict[str, Any]:
     return config_data
 
 
-class ValuesAndFlows:
+class ValuesAndFlowsTools:
     def __init__(self, config_file_path: str):
         self.config: dict[str, Any] = load_vnf_config(config_file_path)
         self._df: pd.DataFrame | None = None

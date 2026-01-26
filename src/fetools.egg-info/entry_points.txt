@@ -1,0 +1,2 @@
+[console_scripts]
+fetools = fetools.cli.main:main
