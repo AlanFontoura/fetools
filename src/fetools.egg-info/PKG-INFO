@@ -7,15 +7,14 @@ Description-Content-Type: text/markdown
 Requires-Dist: pandas>=2.2
 Requires-Dist: numpy>=1.26
 Requires-Dist: awswrangler>=2.20
-Requires-Dist: fsspec>=2024.9
 Requires-Dist: django-rest-framework-client>=0.12
-Requires-Dist: tomlkit>=0.13
 Requires-Dist: requests>=2.32
+Requires-Dist: dataclass-binder>=0.3
+Requires-Dist: typer>=0.12
 Requires-Dist: tqdm>=4.66
 Requires-Dist: multiprocess>=0.70
 Requires-Dist: python-dateutil>=2.8
 Requires-Dist: xlsxwriter>=3.0
-Requires-Dist: typer>=0.12
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 Requires-Dist: black>=24.8; extra == "dev"
@@ -27,6 +26,8 @@ Requires-Dist: pandas-stubs>=2.2; extra == "dev"
 
 **Shared financial engineering tools for the d1g1t FE team.**
 
+A comprehensive toolkit for transforming client data into standardized portfolio management formats. Includes Values and Flows (VnF), Partial Ownership/SMA setup, and Compliance Reporting workflows.
+
 ## Quick Start (2 minutes)
 
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac)
@@ -37,8 +38,17 @@ Requires-Dist: pandas-stubs>=2.2; extra == "dev"
 6. **VS Code**: `Ctrl+Shift+P` → "Dev Containers: Reopen in Container" → **Click OK**
 7. **Docker runs in background automatically**
 
-✅ **Python 3.12 + fetools + AWS deps pre-installed**
-**Dependencies: awswrangler, pandas, s3fs**
+✅ **Python 3.12 + fetools CLI + AWS deps pre-installed**
+
+## Installation
+
+The package is automatically installed in the dev container. To reinstall or update:
+
+```bash
+pip install -e .
+```
+
+This provides the `fetools` CLI command globally.
 
 ## AWS Access (Daily 12hr Token)
 
@@ -51,43 +61,143 @@ Requires-Dist: pandas-stubs>=2.2; extra == "dev"
 
 ## Using fetools
 
-**Python** (IPython/VS Code/Jupyter):
-1. As a package
-```python
-import fetools as fe
+### CLI Commands
+
+```bash
+# Show all available commands
+fetools --help
+
+# Values and Flows workflow
+fetools vnf run gresham                    # Run VnF for client 'gresham'
+fetools vnf run client_name --config path/to/config.toml
+
+# Partial Ownership/SMA
+fetools po-sma generate                    # Generate PO/SMA files
+fetools po-sma generate --output-dir custom/path/
+
+# Compliance Reporting
+fetools compliance report                  # Generate compliance report
+fetools compliance report --config custom_compliance.toml
 ```
 
-2. As single tools
+### Python API
+
+**As a package:**
 ```python
-from fetools.vnf import ValuesAndFlowsTools
-from fetools.po_sma_loader import extend_ownership_table
+from fetools import ValuesAndFlowsTools, ComplianceReport, PROJECT_ROOT
+
+# Values and Flows
+vnf = ValuesAndFlowsTools("data/inputs/vnf/gresham/vnf.toml")
+vnf.run()
+
+# Compliance Report
+report = ComplianceReport("data/inputs/compliance/compliance.toml")
+report.login()
+report.run()
+
+# Use PROJECT_ROOT for relative paths
+config_path = PROJECT_ROOT / "data/configs/my_config.toml"
 ```
 
-3. From command line
-```
-python -m fetools.vnf --params here
+**As single tools:**
+```python
+from fetools.tools.vnf import ValuesAndFlowsTools
+from fetools.tools.po_sma_loader import extend_ownership_table
+from fetools.api.base_main import BaseMain
 ```
 
 ## Scripts & Tools
-[Add tool descriptions here]
+
+### 1. Values and Flows (VnF)
+**Purpose:** Prepare historical position/transaction data for portfolio stitching
+
+**CLI:** `fetools vnf run {client_name}`
+
+**Input:** CSV with Date, Account ID, Market Value, Net Transfers, Household ID
+
+**Output:** Household mappings, portfolio configs, book values, input files
+
+**Config:** TOML file at `data/inputs/vnf/{client}/vnf.toml`
+
+### 2. Partial Ownership/SMA
+**Purpose:** Generate portfolio entities from ownership chains
+
+**CLI:** `fetools po-sma generate`
+
+**Input:** Account.csv, Client.csv, LEOwnership.csv
+
+**Output:** Fund entities, client/account mappings, household structures
+
+**Key Feature:** Recursively calculates multi-level ownership percentages
+
+### 3. Compliance Reporting
+**Purpose:** Generate compliance reports from d1g1t API
+
+**CLI:** `fetools compliance report`
+
+**Requires:** Active d1g1t API credentials + AWS tokens
+
+**Output:** Excel file with conditional formatting for breaches
+
+## Project Structure
+
+```
+fetools/
+├── src/fetools/              # Main package
+│   ├── tools/                # Core workflow modules
+│   │   ├── vnf.py           # Values and Flows
+│   │   ├── po_sma_tools.py  # Partial Ownership/SMA
+│   │   ├── po_sma_loader.py # PO/SMA data loading
+│   │   └── compliance_report.py
+│   ├── api/                  # API clients (d1g1t)
+│   ├── transformers/         # Data transformation utilities
+│   ├── cli/                  # Command-line interface
+│   └── exceptions.py
+│
+├── data/
+│   ├── inputs/               # Client input data
+│   │   ├── vnf/{client}/    # VnF client folders
+│   │   ├── partial_ownership/
+│   │   └── compliance/
+│   ├── outputs/              # Generated outputs
+│   ├── configs/              # Tool configuration files
+│   └── templates/            # Example config templates
+│
+└── tests/                    # Unit tests (to be added)
+```
+
+## Configuration Templates
+
+Example templates are in `data/templates/`:
+- `vnf_template.toml` - Values and Flows config
+- `compliance_template.toml` - Compliance report config
+- `partial_ownership_template.toml` - PO/SMA config
 
 ## Troubleshooting
 
 | Issue                     | Fix                                             |
 | ------------------------- | ----------------------------------------------- |
-| "No module named fetools" | Container terminal: `pip install -e .[dev]`     |
+| "No module named fetools" | Container terminal: `pip install -e .`          |
+| "fetools: command not found" | Run `pip install -e .` to install CLI        |
 | AWS "NoCredentialsError"  | Copy/paste daily token from AWS Identity Center |
 | Slow first container      | Normal (~2min), cached after                    |
 | Docker not running        | Start Docker Desktop                            |
+| Import errors after restructure | Re-run `pip install -e .`                |
 
 ## Standards
 
-✅ Black formatting (88 chars)
+✅ Black formatting (78 chars line length)
 
-✅ mypy type checking
+✅ Type hints with mypy
 
-✅ pytest tests/ folder ready
+✅ CLI-first design with Python API fallback
+
+✅ Configuration-driven transformations (TOML preferred)
 
 ✅ Changes live instantly (editable install)
 
 ✅ GitHub Codespaces compatible
+
+## Development
+
+See [.github/copilot-instructions.md](.github/copilot-instructions.md) for detailed architecture documentation and development guidelines.

@@ -9,18 +9,28 @@ description = "FE Tools: general financial engineering tools for our daily routi
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    # Core data processing
     "pandas>=2.2",
     "numpy>=1.26",
+    
+    # AWS/S3 integration
     "awswrangler>=2.20",
-    "fsspec>=2024.9",
+    
+    # API clients
     "django-rest-framework-client>=0.12",
-    "tomlkit>=0.13",
     "requests>=2.32",
+    
+    # Config parsing
+    "dataclass-binder>=0.3",
+    
+    # CLI
+    "typer>=0.12",
+    
+    # Utilities
     "tqdm>=4.66",
     "multiprocess>=0.70",
     "python-dateutil>=2.8",
     "xlsxwriter>=3.0",
-    "typer>=0.12",
 ]
 
 [project.scripts]
@@ -50,5 +60,9 @@ warn_return_any = true
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "multiprocess.*"
+module = [
+    "multiprocess.*",
+    "dataclass_binder.*",
+    "drf_client.*",
+]
 ignore_missing_imports = true
