@@ -343,5 +343,5 @@ class MiscFiles:
 
 
 if __name__ == "__main__":
-    vnf = ValuesAndFlows("data/inputs/vnf/gresham/vnf.toml")
+    vnf = ValuesAndFlowsTools("data/inputs/vnf/gresham/vnf.toml")
     vnf.main()

@@ -43,6 +43,8 @@ dev = [
     "black>=24.8",
     "mypy>=1.11",
     "types-requests>=2.32",
+    "types-python-dateutil>=2.8",
+    "types-tqdm>=4.66",
     "pandas-stubs>=2.2",
 ]
 
