@@ -2,7 +2,7 @@
 FE Tools: general financial engineering tools for daily routines.
 """
 
-from .po_sma_tools import (
+from .utils.po_sma_tools import (
     adjust_fco_table,
     add_accounts_to_fco,
     Account,
@@ -10,9 +10,9 @@ from .po_sma_tools import (
     Structure,
     Split,
 )
-from .vnf import ValuesAndFlowsTools
-from .compliance_report import ComplianceReport
-from .base_main import BaseMain
+from .tools.vnf import ValuesAndFlows
+from .tools.compliance_report import ComplianceReport
+from .api.base_main import BaseMain
 
 __all__ = [
     "adjust_fco_table",
@@ -21,7 +21,7 @@ __all__ = [
     "Owner",
     "Structure",
     "Split",
-    "ValuesAndFlowsTools",
+    "ValuesAndFlows",
     "ComplianceReport",
     "BaseMain",
 ]
