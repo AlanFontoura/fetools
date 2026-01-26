@@ -51,12 +51,12 @@ from fetools import ValuesAndFlowsTools, ComplianceReport, PROJECT_ROOT
 ## Key Components
 
 ### Ownership Chain Calculator
-- **Function**: `extend_ownership_table()` in [po_sma_loader.py](src/fetools/tools/po_sma_loader.py)
+- **Function**: `extend_ownership_table()` in [po_sma_loader.py]
 - **Purpose**: Recursively calculates multi-level ownership percentages (e.g., Fund → Class → Client → Household)
 - **Algorithm**: Iteratively merges DataFrame on `Owned=Owner` until no new entries found
 
 ### VnF Data Processing
-- **Main class**: `ValuesAndFlowsTools` in [vnf.py](src/fetools/tools/vnf.py)
+- **Main class**: `ValuesAndFlowsTools` in [vnf.py]
 - **TOML config**: Located in `data/inputs/vnf/<client>/vnf.toml`
 - **Key operations**:
   - Filters data up to `stitch_date`
