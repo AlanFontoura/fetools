@@ -32,6 +32,9 @@ dev = [
     "pandas-stubs>=2.2",
 ]
 
+[project.scripts]
+compliance-report = "fetools.tools.compliance_report:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["fetools"]
