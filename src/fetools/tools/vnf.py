@@ -195,6 +195,7 @@ class Inputs:
         )
         # For first entries where previous_market_value is NaN, set cash_from_trades to 0
         df.loc[df["previous_market_value"].isna(), "cash_from_trades"] = 0
+        df.loc[abs(df["cash_from_trades"]) < 1, "cash_from_trades"] = 0
         df = df.drop(columns=["previous_market_value"])
 
         return df
