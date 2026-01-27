@@ -1,0 +1,14 @@
+# Partial Ownership TOML Configuration Template
+
+[input]
+account_file = "data/inputs/partial_ownership/Account.csv"
+client_file = "data/inputs/partial_ownership/Client.csv"
+ownership_file = "data/inputs/partial_ownership/LEOwnership.csv"
+
+[output]
+base_path = "data/outputs/partial_ownership/"
+
+[filters]
+# Filter criteria for SMA and partially-owned accounts
+min_ownership_pct = 0.0
+max_ownership_pct = 100.0

@@ -1,0 +1,58 @@
+[base] # Base configuration for connecting to the API and report settings
+client = "clientname"
+env = "production/staging"
+server = "api-clientname.d1g1t<staging>.com"
+username = "your.name@d1g1t.com"
+region = "ca/us"
+currency = "CAD/USD"
+report_date = "YYYY-MM-DD"
+s3_folder = "s3://d1g1t-client-<region>/<clientname>/Compliance/"
+
+[settings]
+hide_compliant_items = false               # Show only breaches, warnings, and items without limits
+ignore_warnings_near_zero = false          # Ignore warnings when lower limit = 0%
+ignore_warnings_near_one_hundred = false   # Ignore warnings when upper limit = 100%
+
+# Return metrics to be used in compliance checks
+# Create one block per return metric
+# 'name' is the column name in the final report. 'slug' is the metric slug from the API.
+[[returns]]
+name = "Total Return (3M)"
+slug = "q-interval-basic-perf-values-annualized-extern-invest-return-last-quarter"
+
+[[returns]]
+name = "Total Return (6M)"
+slug = "q-interval-basic-perf-values-annualized-extern-invest-return-last-6-months"
+
+[[returns]]
+name = "Total Return (1Y)"
+slug = "q-interval-basic-perf-values-annualized-extern-invest-return-last-year"
+
+[compliance_rules]
+# Choices for leverage and short positions are 'all', 'none' or a list of risk profiles
+check_leverage = ['all']
+check_short_positions = ['all']
+
+# Concentration limits of individual securities by mandate risk profile.
+# Use 'all' for all risk profiles. Set 'all = 1' to ignore concentration checks.
+concentration = {"all" = 0.15}
+# concentration = {"Income" = 0.15, "Short term growth" = 0.20, "Medium term growth" = 0.25, "Long term growth" = 0.30}
+
+[guidelines]
+# What comes after the dot inside the brackets is the name of the column in the guidelines rundeck export csv file
+# Add as many guidelines as needed
+[guidelines.security-asset-class]
+name = "Asset Class"                        # Name of the column in the guidelines file
+cash_classification = "Cash & Equivalent"   # Name of the asset class considered as cash
+slug = "s-instrument-asset-class-name"      # Slug from the API for asset class
+
+[mappers]
+# Map from ID to category name
+# Each guideline needs its own mapper section
+[mappers.security-asset-class]
+1 = "Equity"
+2 = "Fixed Income"
+8 = "Other"
+16 = "Multi-Asset"
+19 = "Cash & Equivalent"
+20 = "Alternatives & Commodities"
