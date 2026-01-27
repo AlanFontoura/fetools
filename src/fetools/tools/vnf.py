@@ -250,7 +250,7 @@ class BookValues:
 
     def create_book_values_file(self):
         bookvalues = pd.DataFrame()
-        bookvalues["Portfolio ID"] = self.df["account_id"]
+        bookvalues["PortfolioID"] = self.df["account_id"]
         bookvalues["Date"] = self.df["date"]
         bookvalues["InstrumentID"] = "legacy_instrument_USD"
         bookvalues["CurrencySplitType"] = "0"
@@ -258,16 +258,18 @@ class BookValues:
         bookvalues["DateFinTransfPosVal"] = self.df["fin_transfer"]
         bookvalues["DateFinTransfInPosVal"] = self.df["fin_transfer_in"]
         bookvalues[
-            "DateTradeAmt",
-            "BookNumUnits",
-            "BookValue",
-            "DateTransferredCost",
-            "DateRealizedPnl",
-            "InternalBookNumUnits",
-            "InternalBookValue",
-            "DateInternalTransferredCost",
-            "DateInternalRealizedPnl",
-            "SettledBookValue",
+            [
+                "DateTradeAmt",
+                "BookNumUnits",
+                "BookValue",
+                "DateTransferredCost",
+                "DateRealizedPnl",
+                "InternalBookNumUnits",
+                "InternalBookValue",
+                "DateInternalTransferredCost",
+                "DateInternalRealizedPnl",
+                "SettledBookValue",
+            ]
         ] = 0
         bookvalues["hh_index"] = self.df["hh_index"]
         return bookvalues
