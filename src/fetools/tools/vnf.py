@@ -26,6 +26,7 @@ class ValuesAndFlows:
             df = df.merge(household_mapping, on="household_id", how="left")
             df = self.add_transfers_in(df)
             df = self.add_zero_entries_for_closed_accounts(df)
+            df = self.adjust_last_date(df)
             self._df = df
         return self._df
 
@@ -86,6 +87,20 @@ class ValuesAndFlows:
 
         return df
 
+    def adjust_last_date(self, df: pd.DataFrame) -> pd.DataFrame:
+        last_date = pd.to_datetime(
+            self.config.get("base", {}).get("stitching_date", "9999-12-31")
+        ) - pd.Timedelta(days=1)
+        last_date = last_date.strftime("%Y-%m-%d")
+        df.loc[
+            df["date"]
+            == self.config.get("base", {}).get(
+                "stitching_date", "9999-12-31"
+            ),
+            "date",
+        ] = last_date
+        return df
+
     def create_output_dir(self):
         client = self.config.get("base", {}).get("client", {})
         output_dir = Path(f"data/outputs/vnf/{client}")
@@ -106,7 +121,7 @@ class ValuesAndFlows:
         historical_config, present_config = (
             misc.create_portfolio_configurations_file()
         )
-        transfers_out = misc.create_transfer_out_transactions()
+        offset_transactions = misc.create_offset_transactions()
 
         # Output directory setup
         output_dir = self.create_output_dir()
@@ -121,8 +136,8 @@ class ValuesAndFlows:
         present_config.to_csv(
             Path(output_dir, "PortfolioConfigs_Present.csv"), index=False
         )
-        transfers_out.to_csv(
-            Path(output_dir, "TransferOutTransactions.csv"), index=False
+        offset_transactions.to_csv(
+            Path(output_dir, "OffsetTransactions.csv"), index=False
         )
 
         for idx in inputs["hh_index"].unique():
@@ -169,16 +184,19 @@ class Inputs:
         return df
 
     def add_cash_from_trades(self, df: pd.DataFrame) -> pd.DataFrame:
-        df["previous_market_value"] = (
-            df.groupby("account_id")["market_value"].shift(1).fillna(0)
-        )
+        df["previous_market_value"] = df.groupby("account_id")[
+            "market_value"
+        ].shift(1)
         df["cash_from_trades"] = (
             df["market_value"]
             - df["previous_market_value"] * (1 + df["returns"])
             - df["fin_transfer_in"]
             - df["opr_transfer"]
         )
+        # For first entries where previous_market_value is NaN, set cash_from_trades to 0
+        df.loc[df["previous_market_value"].isna(), "cash_from_trades"] = 0
         df = df.drop(columns=["previous_market_value"])
+
         return df
 
     def add_and_rename_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -306,42 +324,40 @@ class MiscFiles:
 
         return historical, present
 
-    def create_transfer_out_transactions(self) -> pd.DataFrame:
-        transfers_out = self.df.copy()
-        transfers_out = transfers_out.loc[
-            (transfers_out["date"] == self.stitching_date)
-            & (transfers_out["market_value"] != 0),
+    def create_offset_transactions(self) -> pd.DataFrame:
+        offset = self.df.copy()
+        last_date = offset["date"].max()
+        offset = offset.loc[
+            (offset["date"] == last_date) & (offset["market_value"] != 0),
             ["account_id", "market_value"],
         ]
-        transfers_out = transfers_out.rename(
+        offset = offset.rename(
             columns={
                 "account_id": "Custodian Account ID",
                 "market_value": "Amount",
             }
         )
-        transfers_out["Type"] = [
+        offset["Type"] = [
             (
-                "Internal Transfer Security Out"
+                "Transfer Security Out"
                 if amount > 0
-                else "Internal Transfer Security In"
+                else "Transfer Security In"
             )
-            for amount in transfers_out["Amount"]
+            for amount in offset["Amount"]
         ]
-        transfers_out["Amount"] = abs(transfers_out["Amount"])
-        transfers_out["Quantity"] = transfers_out["Amount"]
-        transfers_out["Market Value in Transaction Currency"] = transfers_out[
-            "Amount"
-        ]
-        transfers_out["Process Date"] = self.stitching_date
-        transfers_out["Settle Date"] = self.stitching_date
-        transfers_out["Trade Date"] = self.stitching_date
-        transfers_out["Currency Name"] = "USD"
-        transfers_out["Instrument ID"] = "legacy_instrument_USD"
-        transfers_out["Transaction ID"] = [
+        offset["Amount"] = abs(offset["Amount"])
+        offset["Quantity"] = offset["Amount"]
+        offset["Market Value in Transaction Currency"] = offset["Amount"]
+        offset["Process Date"] = self.stitching_date
+        offset["Settle Date"] = self.stitching_date
+        offset["Trade Date"] = self.stitching_date
+        offset["Currency Name"] = "USD"
+        offset["Instrument ID"] = "legacy_instrument_USD"
+        offset["Transaction ID"] = [
             f"vnf_transfer_{account}"
-            for account in transfers_out["Custodian Account ID"]
+            for account in offset["Custodian Account ID"]
         ]
-        return transfers_out
+        return offset
 
 
 if __name__ == "__main__":
