@@ -5,7 +5,7 @@
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  "postCreateCommand": "python -m venv .venv && . .venv/bin/activate && pip install --upgrade pip && pip install -e .[dev] && mkdir -p data/inputs data/outputs",
+  "postCreateCommand": "python -m venv .venv && . .venv/bin/activate && pip install --upgrade pip && pip install -e .[dev] && mkdir -p data/inputs data/outputs ~/.aws && touch ~/.aws/credentials",
   "customizations": {
     "vscode": {
       "settings": {

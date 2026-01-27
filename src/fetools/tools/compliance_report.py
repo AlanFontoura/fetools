@@ -5,18 +5,22 @@ from multiprocess import Pool
 from tqdm import tqdm
 import os
 import awswrangler as wr
+import argparse
 
 
 class ComplianceReport(ReportGeneric):
     # region Initialization
     def __init__(self, config_file: str = ""):
+        super().__init__()
+
+        # Load config from parameter or args
+        assert self.args is not None, "Arguments not initialized"
+        if not config_file:
+            config_file = self.args.config_file
         with open(config_file, "rb") as f:
             self.config = tomllib.load(f)
 
-        super().__init__()
-
         # Override parsed args with config values
-        assert self.args is not None, "Arguments not initialized"
         self.base = self.config.get("base", {})
         self.args.username = self.base.get("username")
         self.args.server = self.base.get("server")
@@ -26,6 +30,15 @@ class ComplianceReport(ReportGeneric):
         self.mandates: pd.DataFrame = pd.DataFrame()
         self.compliance_checks: pd.DataFrame = pd.DataFrame()
         self.final_report: pd.DataFrame = pd.DataFrame()
+
+    def add_extra_args(self) -> None:
+        """Add compliance report specific arguments to the parser"""
+        assert self.parser is not None
+        self.parser.add_argument(
+            "config_file",
+            type=str,
+            help="Path to the TOML configuration file",
+        )
 
     # endregion Initialization
 
@@ -243,6 +256,7 @@ class ComplianceReport(ReportGeneric):
     @property
     def guidelines(self) -> pd.DataFrame:
         s3_path = f"s3://d1g1t-client-{self.base['region']}/{self.base['client']}/exports/{self.base['env']}-{self.base['client']}-investment-mandates-guideline-limits.csv"
+        print(s3_path)
         if self._guidelines.empty:
             guidelines = pd.read_csv(
                 s3_path, dtype={"Client": str, "Comparison Value": str}
@@ -842,8 +856,10 @@ class ComplianceReport(ReportGeneric):
 
     # region Generate excel file
     def export_report(self) -> None:
+        output_dir = f"data/outputs/compliance/{self.base.get('client')}"
+        os.makedirs(output_dir, exist_ok=True)
         file_name = f"Compliance Report - {self.base.get('client').title()} - {self.base.get('report_date')}.xlsx"
-        file_path = f"data/outputs/compliance/{file_name}"
+        file_path = f"{output_dir}/{file_name}"
         self.create_excel_report(file_path)
         print(f"Report saved to {file_path}")
         if "s3_folder" in self.base:
@@ -970,8 +986,5 @@ class ComplianceReport(ReportGeneric):
 
 
 if __name__ == "__main__":
-    compliance = ComplianceReport(
-        config_file="data/inputs/compliance/compliance.toml"
-    )
-    os.makedirs("data/outputs/compliance/", exist_ok=True)
+    compliance = ComplianceReport()
     compliance.main()  # This initializes the API and logs in

@@ -1,12 +1,8 @@
 README.md
 pyproject.toml
 src/fetools/__init__.py
-src/fetools/base_main.py
-src/fetools/compliance_report.py
-src/fetools/d1g1tparser.py
 src/fetools/exceptions.py
-src/fetools/po_sma_loader.py
-src/fetools/vnf.py
+src/fetools/po_sma.py
 src/fetools.egg-info/PKG-INFO
 src/fetools.egg-info/SOURCES.txt
 src/fetools.egg-info/dependency_links.txt
