@@ -394,7 +394,7 @@ def get_ownership_file(file_path: str | None) -> pd.DataFrame:
 
 def filter_ownership_by_date(
     df: pd.DataFrame, cutoff_date: str
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     prior = df[df["Date"] <= cutoff_date]
     after = df[df["Date"] > cutoff_date]
     prior = prior.sort_values(by=["Owned", "Owner", "Date"]).drop_duplicates(
