@@ -8,6 +8,7 @@ Requires-Dist: pandas>=2.2
 Requires-Dist: numpy>=1.26
 Requires-Dist: awswrangler>=2.20
 Requires-Dist: fsspec>=2024.9
+Requires-Dist: s3fs>=2024.9
 Requires-Dist: django-rest-framework-client>=0.12
 Requires-Dist: tomlkit>=0.13
 Requires-Dist: requests>=2.32

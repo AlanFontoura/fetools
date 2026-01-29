@@ -33,7 +33,8 @@
         "ms-toolsai.jupyter",
         "ms-toolsai.jupyter-keymap",
         "github.vscode-pull-request-github",
-        "tamasfe.even-better-toml"
+        "tamasfe.even-better-toml",
+        "mechatroner.rainbow-csv"
       ]
     }
   },
