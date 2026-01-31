@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from dataclasses import dataclass
 
 """
@@ -312,7 +313,7 @@ def create_structure_files(file_path: str, type: str) -> Structure:
 
 
 # region Ownership file related functions
-def validate_ownership_file(df: pd.DataFrame) -> bool:
+def validate_ownership_file(df: pd.DataFrame) -> pd.DataFrame:
     required_columns = [
         "Owner",
         "Owned",
@@ -326,7 +327,7 @@ def validate_ownership_file(df: pd.DataFrame) -> bool:
     invalid_entries = df[(df["Percentage"] > 1) | (df["Percentage"] < 0)]
     if not invalid_entries.empty:
         raise ValueError(
-            "Invalid percentage values found in ownership file. "
+            "Invalid percentage values found in ownership file."
             "Percentages must be between 0 and 1."
         )
     self_ownership = df[df["Owner"] == df["Owned"]]
@@ -345,51 +346,160 @@ def validate_ownership_file(df: pd.DataFrame) -> bool:
         raise ValueError(
             "Some entities are under 100% owned on certain dates."
         )
-    return True
-
-
-def include_ownership_of_ownership(df: pd.DataFrame) -> pd.DataFrame:
-    ownership = df.merge(
-        df,
-        left_on="Owned",
-        right_on="Owner",
-        how="inner",
-        suffixes=("_1", "_2"),
-    )
-    ownership["Date"] = ownership[["Date_1", "Date_2"]].max(axis=1)
-    ownership["Percentage"] = (
-        ownership["Percentage_1"] * ownership["Percentage_2"]
-    )
-    ownership = ownership[["Owner_1", "Owned_2", "Date", "Percentage"]]
-    ownership = ownership.rename(
-        columns={"Owner_1": "Owner", "Owned_2": "Owned"}
-    )
-    return ownership
-
-
-def extend_ownership(df: pd.DataFrame) -> pd.DataFrame:
-    total_entries = df.shape[0]
-    while True:
-        new_ownership = include_ownership_of_ownership(df)
-        df = pd.concat([df, new_ownership], ignore_index=True)
-        df = df.drop_duplicates()
-        if df.shape[0] == total_entries:
-            break
-        total_entries = df.shape[0]
-    df["Percentage"] = df["Percentage"].round(4)
     return df
+
+
+def add_zero_entries(df: pd.DataFrame) -> pd.DataFrame:
+    # Ensure dates are datetime objects
+    df["Date"] = pd.to_datetime(df["Date"])
+
+    new_rows = []
+    # Process each 'Owned' entity individually
+    for owned_entity, group in df.groupby("Owned"):
+        # Get unique dates for this specific entity in order
+        dates = sorted(group["Date"].unique())
+
+        for i in range(1, len(dates)):
+            prev_date = dates[i - 1]
+            curr_date = dates[i]
+
+            # Owners present in the previous snapshot
+            prev_owners = set(group[group["Date"] == prev_date]["Owner"])
+            # Owners present in the current snapshot
+            curr_owners = set(group[group["Date"] == curr_date]["Owner"])
+
+            # Find owners who "disappeared"
+            disappeared = prev_owners - curr_owners
+
+            for owner in disappeared:
+                new_rows.append(
+                    {
+                        "Owner": owner,
+                        "Owned": owned_entity,
+                        "Date": curr_date,
+                        "Percentage": 0.0,
+                    }
+                )
+    new_df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+    new_df = new_df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
+        drop=True
+    )
+    return new_df
+
+
+import numpy as np
+
+
+def resolve_effective_ownership(df: pd.DataFrame) -> pd.DataFrame:
+    timeline = sorted(df["Date"].unique())
+    all_snapshots = []
+    last_snapshot = pd.DataFrame()  # To keep track of the previous state
+
+    for current_date in timeline:
+        as_of_now = df[df["Date"] <= current_date]
+
+        # 1. Get current direct state (Overwrite logic)
+        current_state = as_of_now.drop_duplicates(
+            subset=["Owner", "Owned"], keep="last"
+        )
+        current_state = current_state[current_state["Percentage"] > 1e-6]
+
+        if current_state.empty:
+            continue
+
+        # 2. Expand to effective ownership (Add logic)
+        this_snapshot = _calculate_full_path_expansion(current_state)
+        this_snapshot["Date"] = current_date
+
+        # 3. THE FIX: Change Detection
+        # If this is not the first date, only keep rows that are NEW or CHANGED
+        if not last_snapshot.empty:
+            # Merge current with previous to compare percentages
+            comparison = this_snapshot.merge(
+                last_snapshot[["Owner", "Owned", "Percentage"]],
+                on=["Owner", "Owned"],
+                how="left",
+                suffixes=("", "_prev"),
+            )
+            # Filter for rows where percentage changed or the link is brand new
+            # We use np.isclose to handle tiny floating point math differences
+            changed_mask = ~np.isclose(
+                comparison["Percentage"],
+                comparison["Percentage_prev"].fillna(-1),
+            )
+            this_snapshot = this_snapshot[changed_mask].copy()
+
+        # 4. Update the 'last_snapshot' with the FULL state (before filtering)
+        # We need the full state for the next date's comparison
+        # (But we only add the 'changes' to our final report)
+        full_current_resolved = _calculate_full_path_expansion(current_state)
+        last_snapshot = full_current_resolved
+
+        if not this_snapshot.empty:
+            all_snapshots.append(this_snapshot)
+
+    return pd.concat(all_snapshots, ignore_index=True)
+
+
+def _calculate_full_path_expansion(state_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates both direct and indirect ownership, preserving all
+    intermediate links (e.g., A -> K and X -> K).
+    """
+    nodes = sorted(list(set(state_df["Owner"]).union(set(state_df["Owned"]))))
+    node_map = {node: i for i, node in enumerate(nodes)}
+    n = len(nodes)
+
+    # M1 = Direct ownership matrix
+    M1 = np.zeros((n, n))
+    for _, row in state_df.iterrows():
+        M1[node_map[row["Owner"]], node_map[row["Owned"]]] = row["Percentage"]
+
+    # We will accumulate all levels of ownership here
+    # Start with Direct (Level 1)
+    full_results_matrix = M1.copy()
+
+    # Now calculate Indirect (Level 2, 3, etc.)
+    # M_current represents the 'flow' at the next depth
+    M_current = M1.copy()
+
+    # We loop up to the number of entities to ensure we catch deep chains
+    for _ in range(n):
+        # Matrix multiplication finds the next level of indirect ownership
+        # M_next = (Owners of Middlemen) * (Middlemen's ownership of targets)
+        M_next = M_current @ M1
+
+        if np.all(M_next < 1e-9):  # Stop if no more indirect links are found
+            break
+
+        # IMPORTANT: We ADD the indirect interest to our total matrix
+        full_results_matrix += M_next
+        M_current = M_next
+
+    # Convert back to DataFrame
+    rows, cols = np.where(full_results_matrix > 1e-7)
+    results = []
+    for r, c in zip(rows, cols):
+        results.append(
+            {
+                "Owner": nodes[r],
+                "Owned": nodes[c],
+                "Percentage": round(full_results_matrix[r, c], 6),
+            }
+        )
+
+    return pd.DataFrame(results)
 
 
 def get_ownership_file(file_path: str | None) -> pd.DataFrame:
     if file_path is None:
         return pd.DataFrame()
     df = pd.read_csv(file_path)
-    validate_ownership_file(df)
-    extended_df = extend_ownership(df)
-    extended_df = extended_df.sort_values(
-        by=["Owned", "Owner", "Date"]
-    ).reset_index(drop=True)
-    return extended_df
+    df = validate_ownership_file(df)
+    df = add_zero_entries(df)
+    df = resolve_effective_ownership(df)
+    # extended_df = extend_ownership(df)
+    return df
 
 
 def filter_ownership_by_date(
@@ -397,7 +507,7 @@ def filter_ownership_by_date(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     prior = df[df["Date"] <= cutoff_date]
     after = df[df["Date"] > cutoff_date]
-    prior = prior.sort_values(by=["Owned", "Owner", "Date"]).drop_duplicates(
+    prior = prior.sort_values(by=["Owned", "Date", "Owner"]).drop_duplicates(
         subset=["Owned", "Owner"], keep="last"
     )
     prior["Date"] = cutoff_date
