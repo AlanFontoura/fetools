@@ -4,5 +4,25 @@
   },
   "general": {
     "previewFeatures": true
+  },
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "" 
+      },
+      "description": "Uses your local 'gh' CLI credentials to manage issues and PRs."
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspaces/fetools"],
+      "description": "Allows Gemini to read and write files in your current workspace."
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "description": "Helps Gemini solve complex problems by planning steps first."
+    }
   }
 }
