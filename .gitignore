@@ -33,3 +33,6 @@ data/outputs/*
 ._*
 Thumbs.db
 ehthumbs.db
+
+.gemini/
+gha-creds-*.json
