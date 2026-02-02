@@ -1,378 +1,531 @@
 import pandas as pd
+import numpy as np
 from dataclasses import dataclass
-from typing import cast
+
+"""
+Account input file (fields with a * are optional):
+Account ID
+Account Name
+Currency
+Client ID
+Opened Date
+Rep Code
+Custodian
+Advisory Scope
+UDF1
+UDF2
+UDF5
+SMA Name (SMA only)
+*Asset Category (SMA only)
+*Asset Class (SMA only)
+*Sub Asset Class (SMA only)
+*Asset Class Level3 (SMA only)
+*Asset Strategy (SMA only)
+
+Ownership input file (for PO only):
+Owner           Owner Client ID
+Owned           Owned Entity Client ID
+Date            Date of Ownership
+Percentage      Percentage of Ownership
+"""
 
 
+# region Config dataclass
 @dataclass(frozen=True)
-class Account:
-    id: str
-    name: str
-    is_partially_owned: bool = False
-    is_SMA: bool = False
-    opened_date: str = ""
-    advisory_scope: str = ""
-    rep_code: str = ""
-    currency: str = ""
-    udf1: str = ""
-    udf2: str = ""
-    client_id: str = ""
-    client_name: str = ""
-    sma_name: str | None = None
-    sma_category: str | None = None
-    sma_asset_class: str | None = None
-    sma_asset_class_l2: str | None = None
-    sma_asset_class_l3: str | None = None
+class PO_SMA_Config:
+    type: str  # "po", "sma", or "both"
+    first_transaction_date: str
+    output_folder: str
+    account_file: str
+    ownership_file: str | None = None
 
 
-@dataclass(frozen=True)
-class Owner:
-    id: str
-    name: str
-    ownership_structure: dict[
-        str, float
-    ]  # date to ownership percentage across dates
+# endregion
 
 
+# region Structure class and related functions
 class Structure:
-    def __init__(self, account: Account, owners: list[Owner]):
-        self.account = account
-        self.owners = owners
+    def __init__(self, df: pd.DataFrame, type="sma"):
+        self.df: pd.DataFrame = df
+        self.type: str = type.lower()
+        if self.type not in ["sma", "po"]:
+            raise ValueError(
+                f"Invalid type: '{self.type}'. Type must be either 'SMA' or 'PO'."
+            )
+        self._funds: pd.DataFrame | None = None
+        self._classseries: pd.DataFrame | None = None
+        self._instruments: pd.DataFrame | None = None
+        self._account_create: pd.DataFrame | None = None
+        self._account_remap: pd.DataFrame | None = None
+        self._fund_client_ownership: pd.DataFrame | None = None
 
-    def create_fund(self):
-        return {
-            "Firm Provided Key": f"{self.account.id}_fund",
-            "Name": f"{self.account.name} - FUND",
-            "Currency": self.account.currency,
-            "Fund Manager Firm Provided Key": self.account.client_id,
-            "Type": "SMA",
-        }
+    @property
+    def funds(self) -> pd.DataFrame:
+        if self._funds is None:
+            funds = self.df.copy()
+            funds["Firm Provided Key"] = [
+                f"{self.type}_fund_{account_id}"
+                for account_id in funds["Account ID"]
+            ]
+            funds["Name"] = [
+                f"{account_name[:84]} - Fund"
+                for account_name in funds["Account Name"]
+            ]
+            funds["Fund Manager Firm Provided Key"] = funds["Client ID"]
+            funds["Type"] = "SMA"
+            cols = [
+                "Firm Provided Key",
+                "Name",
+                "Fund Manager Firm Provided Key",
+                "Type",
+            ]
+            funds = funds[cols]
+            self._funds = funds
+        return self._funds
 
-    def create_class_series(self):
-        return {
-            "Firm Provided Key": f"{self.account.id}_class",
-            "Fund Firm Provided Key": f"{self.account.id}_fund",
-            "Name": f"{self.account.name} - CLASS",
-            "Weight": 1,
-        }
+    @property
+    def classseries(self) -> pd.DataFrame:
+        if self._classseries is None:
+            classseries = self.df.copy()
+            classseries["Firm Provided Key"] = [
+                f"{self.type}_classseries_{account_id}"
+                for account_id in classseries["Account ID"]
+            ]
+            classseries["Name"] = [
+                f"{account_name[:84]} - Class Series"
+                for account_name in classseries["Account Name"]
+            ]
+            classseries["Fund Firm Provided Key"] = [
+                f"{self.type}_fund_{account_id}"
+                for account_id in classseries["Account ID"]
+            ]
+            classseries["Weight"] = 1
+            cols = [
+                "Firm Provided Key",
+                "Name",
+                "Fund Firm Provided Key",
+                "Weight",
+            ]
+            classseries = classseries[cols]
+            self._classseries = classseries
+        return self._classseries
 
-    def create_household(self):
-        return {
-            "Household ID": f"{self.account.id}_household",
-            "Name": f"{self.account.name} - HOUSEHOLD",
-            "Team Name": "ALL CLIENTS",
-        }
+    @property
+    def instruments(self) -> pd.DataFrame:
+        if self._instruments is None:
+            instruments = self.df.copy()
+            instruments["Instrument ID"] = [
+                f"{self.type}_instrument_{account_id}"
+                for account_id in instruments["Account ID"]
+            ]
+            instruments["Firm Security Type Name"] = (
+                "SMA" if self.type == "sma" else "Unitless"
+            )
+            instruments["Currency Name"] = instruments["Currency"]
+            instruments["Instrument Name"] = (
+                instruments["SMA Name"]
+                if self.type == "sma"
+                else [
+                    f"{account_name[:84]} - Instrument"
+                    for account_name in instruments["Account Name"]
+                ]
+            )
+            instruments["Class Series ID"] = [
+                f"{self.type}_classseries_{account_id}"
+                for account_id in instruments["Account ID"]
+            ]
+            instruments["Valuation Per Position"] = True
+            instruments["User Defined 3"] = (
+                "SMA" if self.type == "sma" else "Partially Owned"
+            )
+            cols = [
+                "Instrument ID",
+                "Instrument Name",
+                "Firm Security Type Name",
+                "Currency Name",
+                "Class Series ID",
+                "Valuation Per Position",
+                "User Defined 3",
+            ]
+            if self.type == "sma":
+                instruments["Asset Category Name"] = instruments[
+                    "Asset Category"
+                ]
+                instruments["Asset Class Name"] = instruments["Asset Class"]
+                instruments["Asset Class l2 Name"] = instruments[
+                    "Sub Asset Class"
+                ]
+                instruments["Asset Class l3 Name"] = instruments[
+                    "Asset Class Level3"
+                ]
+                instruments["Strategy Name"] = instruments["Asset Strategy"]
+                extra_cols = [
+                    "Asset Category Name",
+                    "Asset Class Name",
+                    "Asset Class l2 Name",
+                    "Asset Class l3 Name",
+                    "Strategy Name",
+                ]
+                cols.extend(extra_cols)
+            instruments = instruments[cols]
+            self._instruments = instruments
+        return self._instruments
 
-    def create_client(self):
-        return {
-            "Client ID": f"{self.account.id}_client",
-            "Name": f"{self.account.name} - CLIENT",
-            "Household ID": f"{self.account.id}_household",
-            "Client Type Description": "Foundation",
-            "Jurisdiction": "US",
-            "TaxResidency": "US",
-            "Team Name": "ALL CLIENTS",
-            "CRM_ContactID": f"{self.account.id}_client",
-        }
+    @property
+    def account_create(self) -> pd.DataFrame:
+        if self._account_create is None:
+            account_create = self.df.copy()
+            account_create["Account Type Name"] = "Other"
+            account_create["Account ID"] = [
+                f"{self.type}_account_{account_id}"
+                for account_id in account_create["Account ID"]
+            ]
+            account_create["Account Name"] = (
+                [
+                    f"{account_name[:84]} - SMA"
+                    for account_name in account_create["Account Name"]
+                ]
+                if self.type == "sma"
+                else [
+                    f"{account_name[:84]} - PO Account"
+                    for account_name in account_create["Account Name"]
+                ]
+            )
+            account_create["Currency Name"] = account_create["Currency"]
+            account_create["Client ID"] = account_create["Client ID"]
+            account_create["Date Opened"] = account_create["Opened Date"]
+            account_create["Inception Date"] = account_create["Opened Date"]
+            account_create["Rep Code ID"] = account_create["Rep Code"]
+            account_create["Custodian Name"] = account_create["Custodian"]
+            account_create["Advisory Scope Name"] = account_create[
+                "Advisory Scope"
+            ]
+            account_create["User Defined 1"] = account_create["UDF1"]
+            account_create["User Defined 2"] = account_create["UDF2"]
+            account_create["User Defined 5"] = (
+                "Partially Owned" if self.type == "po" else None
+            )
+            cols = [
+                "Account Type Name",
+                "Account ID",
+                "Account Name",
+                "Currency Name",
+                "Client ID",
+                "Date Opened",
+                "Inception Date",
+                "Rep Code ID",
+                "Custodian Name",
+                "Advisory Scope Name",
+                "User Defined 1",
+                "User Defined 2",
+                "User Defined 5",
+            ]
+            account_create = account_create[cols]
+            self._account_create = account_create
+        return self._account_create
 
-    def update_client(self):
-        return {
-            "Client ID": self.account.client_id,
-            "User Defined 1": (
-                "Partially Owned" if self.account.is_partially_owned else None
-            ),
-        }
+    @property
+    def account_remap(self) -> pd.DataFrame:
+        if self._account_remap is None:
+            account_remap = self.df.copy()
+            account_remap["Class Series ID"] = [
+                f"{self.type}_classseries_{account_id}"
+                for account_id in account_remap["Account ID"]
+            ]
+            account_remap["Client ID"] = None
+            cols = ["Account ID", "Class Series ID", "Client ID"]
+            account_remap = account_remap[cols]
+            self._account_remap = account_remap
+        return self._account_remap
 
-    def create_instrument(self):
-        return {
-            "Instrument ID": f"{self.account.id}_instrument",
-            "Name": f"{self.account.name} - INSTRUMENT",
-            "Firm Security Type Name": "Unitless",
-            "Currency Name": self.account.currency,
-            "Class Series ID": f"{self.account.id}_class",
-            "Valuation Per Position": True,
-            "User Defined 3": "SMA",
-            "Asstet Category Name": self.account.sma_category,
-            "Asset Class Name": self.account.sma_asset_class,
-            "Asset Class l2 Name": self.account.sma_asset_class_l2,
-            "Asset Class l3 Name": self.account.sma_asset_class_l3,
-        }
+    @property
+    def fund_client_ownership(self) -> pd.DataFrame:
+        if self._fund_client_ownership is None:
+            fund_client_ownership = self.df.copy()
+            fund_client_ownership["Class Series ID"] = [
+                f"{self.type}_classseries_{account_id}"
+                for account_id in fund_client_ownership["Account ID"]
+            ]
+            fund_client_ownership["Client Account ID"] = [
+                f"{self.type}_account_{account_id}"
+                for account_id in fund_client_ownership["Account ID"]
+            ]
+            fund_client_ownership["Date"] = fund_client_ownership[
+                "Opened Date"
+            ]
+            fund_client_ownership["Percent"] = 1
+            cols = [
+                "Class Series ID",
+                "Client Account ID",
+                "Date",
+                "Percent",
+            ]
+            fund_client_ownership = fund_client_ownership[cols]
+            self._fund_client_ownership = fund_client_ownership
+        return self._fund_client_ownership
 
-    def create_account(self):
-        return {
-            "Account Type Name": "Other",
-            "Account ID": f"{self.account.id}_client",
-            "Account Name": self.account.name,
-            "Currency Name": self.account.currency,
-            "Client ID": self.account.client_id,
-            "Date Opened": self.account.opened_date,
-            "Inception Date": self.account.opened_date,
-            "Advisory Scope Name": self.account.advisory_scope,
-            "Rep Code": self.account.rep_code,
-            "User Defined 1": self.account.udf1,
-            "User Defined 2": self.account.udf2,
-            "User Defined 5": "Direct",
-        }
-
-    def remap_account(self):
-        return {
-            "Account ID": self.account.id,
-            "Class Series ID": f"{self.account.id}_class",
-            "Client ID": f"{self.account.id}_client",
-        }
-
-    def fund_client_ownership(self):
-        return {
-            "Fund Firm Provided Key": f"{self.account.id}_fund",
-            "Client ID": f"{self.account.id}_client",
-            "Ownership Percentage": 1.0,
-        }
-
-    def create_splits(self):
-        for owner in self.owners:
-            split = Split(account=self.account, owner=owner)
-            yield split
-
-
-class Split:
-    def __init__(self, account: Account, owner: Owner):
-        self.account = account
-        self.owner = owner
-        self.most_recent_date = max(owner.ownership_structure.keys())
-        self.pct_of_ownership = owner.ownership_structure[
-            self.most_recent_date
-        ]
-
-    def create_account(self):
-        return {
-            "Account Type Name": "Other",
-            "Account ID": f"{self.account.id}_{self.owner.id}",
-            "Account Name": f"{self.owner.name} {self.account.name} - {self.pct_of_ownership:.2%}",
-            "Client ID": self.owner.id,
-            "Date Opened": self.account.opened_date,
-            "Inception Date": self.account.opened_date,
-            "Advisory Scope Name": self.account.advisory_scope,
-            "Rep Code": self.account.rep_code,
-            "User Defined 1": self.account.udf1,
-            "User Defined 2": self.account.udf2,
-            "User Defined 5": "Split",
-        }
-
-    def create_fund_client_ownership(self):
-        for date, pct in self.owner.ownership_structure.items():
-            yield {
-                "Class Series ID": f"{self.account.id}_class",
-                "Client Account ID": f"{self.account.id}_client",
-                "Date": date,
-                "Ownership Percentage": pct,
-            }
-
-
-def extend_ownership_table(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Extends the ownership DataFrame by adding multi level ownership of ownership
-    entries.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
-    columns.
-
-    Returns:
-    pd.DataFrame: Extended DataFrame with additional multi level ownership of
-    ownership entries.
-    """
-    number_of_entries = df.shape[0]
-    keep_going = True
-    while keep_going:
-        new_entries = simple_ownership_of_ownership(df)
-        df = pd.concat([df, new_entries], ignore_index=True).drop_duplicates()
-        if df.shape[0] == number_of_entries:
-            keep_going = False
-        else:
-            number_of_entries = df.shape[0]
-    df["Percentage"] = df["Percentage"].round(4)
-    return df.sort_values(by=["Owned", "Owner", "Date"]).reset_index(
-        drop=True
-    )
-
-
-def simple_ownership_of_ownership(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculates a single level of ownership of ownership for each entity in the
-    DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
-    columns.
-
-    Returns:
-    pd.DataFrame: DataFrame with additional entries representing one level of
-    ownership of ownership.
-    """
-    ownership_of_ownership = df.merge(
-        df, left_on="Owned", right_on="Owner", how="inner"
-    )
-    ownership_of_ownership["Date"] = [
-        max(d1, d2)
-        for d1, d2 in zip(
-            ownership_of_ownership["Date_x"], ownership_of_ownership["Date_y"]
+    def merge(self, other):
+        if self.type == other.type:
+            raise ValueError(
+                "Cannot merge two Structure objects of the same type."
+            )
+        merged_df = pd.concat([self.df, other.df], ignore_index=True)
+        self._funds = pd.concat([self.funds, other.funds], ignore_index=True)
+        self._classseries = pd.concat(
+            [self.classseries, other.classseries], ignore_index=True
         )
-    ]
-    ownership_of_ownership = ownership_of_ownership.sort_values(
-        by=["Owned_y", "Owner_x", "Date", "Date_x", "Date_y"]
-    ).drop_duplicates(subset=["Owner_x", "Owned_y", "Date"], keep="last")
-    ownership_of_ownership["Owner"] = ownership_of_ownership["Owner_x"]
-    ownership_of_ownership["Owned"] = ownership_of_ownership["Owned_y"]
-    ownership_of_ownership["Percentage"] = (
-        ownership_of_ownership["Percentage_x"]
-        * ownership_of_ownership["Percentage_y"]
-    )
-    ownership_of_ownership = ownership_of_ownership[
-        ["Owner", "Owned", "Date", "Percentage"]
-    ]
-    return ownership_of_ownership
-
-
-def apply_cutoff_date_to_fco(
-    df: pd.DataFrame, cutoff_date: str
-) -> pd.DataFrame:
-    """
-    Applies a cutoff date to the ownership DataFrame
-    On the cutoff date, only the latest entry prior to or on the cutoff date
-    is kept for each Owned-Owner pair. Entries after the cutoff date are kept as is
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing 'Date' column.
-    cutoff_date (str format, YYYY-MM-DD): The cutoff date to filter the DataFrame.
-
-    Returns:
-    pd.DataFrame: Filtered DataFrame with entries on or after the cutoff date.
-    """
-    df = df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(drop=True)
-    after = df[df["Date"] > cutoff_date]
-    prior = df[df["Date"] <= cutoff_date]
-    if not prior.empty:
-        prior = prior.drop_duplicates(subset=["Owned", "Owner"], keep="last")
-        prior["Date"] = cutoff_date
-    df = pd.concat([prior, after], ignore_index=True)
-    return df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
-        drop=True
-    )
-
-
-def add_zero_entries_to_owner(
-    fco: pd.DataFrame = pd.DataFrame(),
-) -> pd.DataFrame:
-    """
-    Adds zero percentage entries to the ownership DataFrame
-    for all combinations of Owners and Owned entities that do not exist in the DataFrame.
-
-    Parameters:
-    fco (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
-    columns for a single 'Owned' entity.
-
-    Returns:
-    pd.DataFrame: DataFrame with added zero percentage entries.
-    """
-    if fco.empty:
-        return fco
-    dates = fco["Date"].unique().tolist()
-    dates.sort()
-    owned = fco["Owned"].iloc[0]
-    current_owners = (
-        fco.loc[fco["Date"] == dates[0], "Owner"].unique().tolist()
-    )
-    for date in dates[1:]:
-        owners_at_date = (
-            fco.loc[fco["Date"] == date, "Owner"].unique().tolist()
+        self._instruments = pd.concat(
+            [self.instruments, other.instruments], ignore_index=True
         )
-        for owner in current_owners:
-            if owner not in owners_at_date:
-                new_entry = pd.DataFrame(
+        self._account_create = pd.concat(
+            [self.account_create, other.account_create], ignore_index=True
+        )
+        self._account_remap = pd.concat(
+            [self.account_remap, other.account_remap], ignore_index=True
+        )
+        self._fund_client_ownership = pd.concat(
+            [self.fund_client_ownership, other.fund_client_ownership],
+            ignore_index=True,
+        )
+        self.type = "both"
+        return self
+
+
+def create_structure_files(file_path: str, type: str) -> Structure:
+    df = pd.read_csv(file_path)
+    if type == "sma":
+        structure = Structure(df, type="sma")
+
+    if type == "po":
+        structure = Structure(df, type="po")
+
+    if type == "both":
+        sma_df = df[df["Is SMA"]]
+        po_df = df[~df["Is SMA"]]
+        sma_structure = Structure(sma_df, type="sma")
+        po_structure = Structure(po_df, type="po")
+        structure = sma_structure.merge(po_structure)
+
+    return structure
+
+
+# endregion
+
+
+# region Ownership file related functions
+def validate_ownership_file(df: pd.DataFrame) -> pd.DataFrame:
+    required_columns = [
+        "Owner",
+        "Owned",
+        "Date",
+        "Percentage",
+    ]
+    for col in required_columns:
+        if col not in df.columns:
+            raise ValueError(f"Missing required column: {col}")
+    df = df.groupby(["Owner", "Owned", "Date"]).sum().reset_index()
+    invalid_entries = df[(df["Percentage"] > 1) | (df["Percentage"] < 0)]
+    if not invalid_entries.empty:
+        raise ValueError(
+            "Invalid percentage values found in ownership file."
+            "Percentages must be between 0 and 1."
+        )
+    self_ownership = df[df["Owner"] == df["Owned"]]
+    if not self_ownership.empty:
+        raise ValueError("Self-ownership entries found in ownership file.")
+    total_ownership = (
+        df.groupby(["Owned", "Date"])["Percentage"].sum().reset_index()
+    )
+    over_owned = total_ownership[total_ownership["Percentage"] > 1.02]
+    if not over_owned.empty:
+        raise ValueError(
+            "Some entities are over 100% owned on certain dates."
+        )
+    under_owned = total_ownership[total_ownership["Percentage"] < 0.98]
+    if not under_owned.empty:
+        raise ValueError(
+            "Some entities are under 100% owned on certain dates."
+        )
+    return df
+
+
+def add_zero_entries(df: pd.DataFrame) -> pd.DataFrame:
+    # Ensure dates are datetime objects
+    df["Date"] = pd.to_datetime(df["Date"])
+
+    new_rows = []
+    # Process each 'Owned' entity individually
+    for owned_entity, group in df.groupby("Owned"):
+        # Get unique dates for this specific entity in order
+        dates = sorted(group["Date"].unique())
+
+        for i in range(1, len(dates)):
+            prev_date = dates[i - 1]
+            curr_date = dates[i]
+
+            # Owners present in the previous snapshot
+            prev_owners = set(group[group["Date"] == prev_date]["Owner"])
+            # Owners present in the current snapshot
+            curr_owners = set(group[group["Date"] == curr_date]["Owner"])
+
+            # Find owners who "disappeared"
+            disappeared = prev_owners - curr_owners
+
+            for owner in disappeared:
+                new_rows.append(
                     {
-                        "Owner": [owner],
-                        "Owned": [owned],
-                        "Date": [date],
-                        "Percentage": [0.0],
+                        "Owner": owner,
+                        "Owned": owned_entity,
+                        "Date": curr_date,
+                        "Percentage": 0.0,
                     }
                 )
-                fco = cast(
-                    pd.DataFrame,
-                    pd.concat([fco, new_entry], ignore_index=True),
-                )
-        current_owners = owners_at_date
-    return fco.sort_values(by=["Date", "Owner"]).reset_index(drop=True)
-
-
-def add_zero_entries_to_fco(
-    df: pd.DataFrame = pd.DataFrame(),
-) -> pd.DataFrame:
-    """
-    Adds zero percentage entries to the ownership DataFrame
-    for all combinations of Owners and Owned entities that do not exist in the DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
-    columns.
-
-    Returns:
-    pd.DataFrame: DataFrame with added zero percentage entries.
-    """
-    if df.empty:
-        return df
-    fco_groups = []
-    owned_entities = df["Owned"].unique().tolist()
-    for owned in owned_entities:
-        fco_owned = df[df["Owned"] == owned].reset_index(drop=True)
-        fco_owned_extended = add_zero_entries_to_owner(fco_owned)
-        fco_groups.append(fco_owned_extended)
-    return (
-        pd.concat(fco_groups, ignore_index=True)
-        .sort_values(by=["Owned", "Date", "Owner"])
-        .reset_index(drop=True)
-    )
-
-
-# TODO: implement FCO input validation
-def validate_fco(df: pd.DataFrame) -> None:
-    pass
-
-
-def adjust_fco_table(
-    df: pd.DataFrame,
-    cutoff_date: str,
-) -> pd.DataFrame:
-    """
-    Adjusts the ownership DataFrame by applying a cutoff date and adding zero
-    percentage entries.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing 'Owner', 'Owned', 'Date' and 'Percentage'
-    columns.
-    cutoff_date (str format, YYYY-MM-DD): The cutoff date to filter the DataFrame.
-
-    Returns:
-    pd.DataFrame: Adjusted DataFrame with applied cutoff date and added zero
-    percentage entries.
-    """
-    df = extend_ownership_table(df)
-    df = apply_cutoff_date_to_fco(df, cutoff_date)
-    df = add_zero_entries_to_fco(df)
-    return df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
+    new_df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+    new_df = new_df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
         drop=True
     )
+    return new_df
 
 
-def add_accounts_to_fco(
-    fco: pd.DataFrame,
-    acc: pd.DataFrame,
-) -> pd.DataFrame:
-    account_fco = fco.merge(
-        acc[["ClientCode", "AccountCode"]],
-        left_on="Owned",
-        right_on="ClientCode",
-        how="left",
+import numpy as np
+
+
+def resolve_effective_ownership(df: pd.DataFrame) -> pd.DataFrame:
+    timeline = sorted(df["Date"].unique())
+    all_snapshots = []
+    last_snapshot = pd.DataFrame()  # To keep track of the previous state
+
+    for current_date in timeline:
+        as_of_now = df[df["Date"] <= current_date]
+
+        # 1. Get current direct state (Overwrite logic)
+        current_state = as_of_now.drop_duplicates(
+            subset=["Owner", "Owned"], keep="last"
+        )
+        current_state = current_state[current_state["Percentage"] > 1e-6]
+
+        if current_state.empty:
+            continue
+
+        # 2. Expand to effective ownership (Add logic)
+        this_snapshot = _calculate_full_path_expansion(current_state)
+        this_snapshot["Date"] = current_date
+
+        # 3. THE FIX: Change Detection
+        # If this is not the first date, only keep rows that are NEW or CHANGED
+        if not last_snapshot.empty:
+            # Merge current with previous to compare percentages
+            comparison = this_snapshot.merge(
+                last_snapshot[["Owner", "Owned", "Percentage"]],
+                on=["Owner", "Owned"],
+                how="left",
+                suffixes=("", "_prev"),
+            )
+            # Filter for rows where percentage changed or the link is brand new
+            # We use np.isclose to handle tiny floating point math differences
+            changed_mask = ~np.isclose(
+                comparison["Percentage"],
+                comparison["Percentage_prev"].fillna(-1),
+            )
+            this_snapshot = this_snapshot[changed_mask].copy()
+
+        # 4. Update the 'last_snapshot' with the FULL state (before filtering)
+        # We need the full state for the next date's comparison
+        # (But we only add the 'changes' to our final report)
+        full_current_resolved = _calculate_full_path_expansion(current_state)
+        last_snapshot = full_current_resolved
+
+        if not this_snapshot.empty:
+            all_snapshots.append(this_snapshot)
+
+    return pd.concat(all_snapshots, ignore_index=True)
+
+
+def _calculate_full_path_expansion(state_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates both direct and indirect ownership, preserving all
+    intermediate links (e.g., A -> K and X -> K).
+    """
+    nodes = sorted(list(set(state_df["Owner"]).union(set(state_df["Owned"]))))
+    node_map = {node: i for i, node in enumerate(nodes)}
+    n = len(nodes)
+
+    # M1 = Direct ownership matrix
+    M1 = np.zeros((n, n))
+    for _, row in state_df.iterrows():
+        M1[node_map[row["Owner"]], node_map[row["Owned"]]] = row["Percentage"]
+
+    # We will accumulate all levels of ownership here
+    # Start with Direct (Level 1)
+    full_results_matrix = M1.copy()
+
+    # Now calculate Indirect (Level 2, 3, etc.)
+    # M_current represents the 'flow' at the next depth
+    M_current = M1.copy()
+
+    # We loop up to the number of entities to ensure we catch deep chains
+    for _ in range(n):
+        # Matrix multiplication finds the next level of indirect ownership
+        # M_next = (Owners of Middlemen) * (Middlemen's ownership of targets)
+        M_next = M_current @ M1
+
+        if np.all(M_next < 1e-9):  # Stop if no more indirect links are found
+            break
+
+        # IMPORTANT: We ADD the indirect interest to our total matrix
+        full_results_matrix += M_next
+        M_current = M_next
+
+    # Convert back to DataFrame
+    rows, cols = np.where(full_results_matrix > 1e-7)
+    results = []
+    for r, c in zip(rows, cols):
+        results.append(
+            {
+                "Owner": nodes[r],
+                "Owned": nodes[c],
+                "Percentage": round(full_results_matrix[r, c], 6),
+            }
+        )
+
+    return pd.DataFrame(results)
+
+
+def get_ownership_file(file_path: str | None) -> pd.DataFrame:
+    if file_path is None:
+        return pd.DataFrame()
+    df = pd.read_csv(file_path)
+    df = validate_ownership_file(df)
+    df = add_zero_entries(df)
+    df = resolve_effective_ownership(df)
+    # extended_df = extend_ownership(df)
+    return df
+
+
+def filter_ownership_by_date(
+    df: pd.DataFrame, cutoff_date: str
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    prior = df[df["Date"] <= cutoff_date]
+    after = df[df["Date"] > cutoff_date]
+    prior = prior.sort_values(by=["Owned", "Date", "Owner"]).drop_duplicates(
+        subset=["Owned", "Owner"], keep="last"
     )
-    account_fco = account_fco.drop(columns=["ClientCode", "Owned"])
-    return account_fco.sort_values(
-        by=["AccountCode", "Date", "Owner"]
-    ).reset_index(drop=True)
+    prior["Date"] = cutoff_date
+    current_ownership = pd.concat([prior, after], ignore_index=True)
+    past_ownership = df[df["Date"] < cutoff_date]
+    return current_ownership, past_ownership
+
+
+# endregion
+
+
+def create_split_accounts_file(
+    account: pd.DataFrame, ownership: pd.DataFrame
+) -> pd.DataFrame:
+    full_data = ownership.merge(
+        account,
+        left_on="Owned",
+        right_on="Client ID",
+        how="inner",
+    )
+    return full_data
