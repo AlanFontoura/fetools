@@ -21,8 +21,11 @@ htmlcov/
 *.code-workspace
 .github/copilot-instructions.md
 
-# Data CONTENTS only
-data/
+# Data folders - ignore contents but keep folder structure
+data/inputs/*
+!data/inputs/.gitkeep
+data/outputs/*
+!data/outputs/.gitkeep
 
 # OS generated
 .DS_Store

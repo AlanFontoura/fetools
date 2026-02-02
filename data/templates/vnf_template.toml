@@ -1,0 +1,17 @@
+# Example VnF Configuration Template
+
+[base]
+client = 'client_name_here'
+stitching_date = '2024-12-31'  # Format: YYYY-MM-DD
+data = 'data/inputs/vnf/client_name_here/base_data.csv'
+
+[columns]
+date = 'Date'
+account_id = 'Account ID'
+market_value = 'Market Value'
+net_transfers = 'Net Transfers'
+net_internal_transfers = 'Net Internal Transfers'
+household_id = 'Household ID'
+
+[output]
+base_path = 'data/outputs/vnf/client_name_here/'

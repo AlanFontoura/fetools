@@ -13,6 +13,7 @@ dependencies = [
     "numpy>=1.26",
     "awswrangler>=2.20",
     "fsspec>=2024.9",
+    "s3fs>=2024.9",
     "django-rest-framework-client>=0.12",
     "tomlkit>=0.13",
     "requests>=2.32",
@@ -31,6 +32,9 @@ dev = [
     "types-requests>=2.32",
     "pandas-stubs>=2.2",
 ]
+
+[project.scripts]
+compliance-report = "fetools.tools.compliance_report:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

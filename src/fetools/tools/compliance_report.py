@@ -985,6 +985,11 @@ class ComplianceReport(ReportGeneric):
         self.export_report()
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for CLI usage"""
     compliance = ComplianceReport()
     compliance.main()  # This initializes the API and logs in
+
+
+if __name__ == "__main__":
+    main()

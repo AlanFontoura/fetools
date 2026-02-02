@@ -6,5 +6,7 @@ src/fetools/po_sma.py
 src/fetools.egg-info/PKG-INFO
 src/fetools.egg-info/SOURCES.txt
 src/fetools.egg-info/dependency_links.txt
+src/fetools.egg-info/entry_points.txt
 src/fetools.egg-info/requires.txt
 src/fetools.egg-info/top_level.txt
+tests/test_anonimyze_dataset.py
