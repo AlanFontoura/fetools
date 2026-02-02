@@ -1,0 +1,16 @@
+[base]
+client = 'gresham'
+stitching_date = '2020-12-31'
+data = 'data/inputs/vnf/gresham/base_data.csv'
+
+[columns]
+date = 'Date'
+account_id = 'Account ID'
+market_value = 'Market Value'
+opr_transfer = 0
+fin_transfer = 'Net Invested Capital'
+fin_transfer_in = 'Net Invested Capital In'
+fees = 0
+expenses = 0
+returns = 'Returns'
+household_id = 'Household ID'
