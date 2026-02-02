@@ -26,6 +26,8 @@ data/inputs/*
 !data/inputs/.gitkeep
 data/outputs/*
 !data/outputs/.gitkeep
+data/configs/*
+!data/configs/.gitkeep
 
 # OS generated
 .DS_Store
