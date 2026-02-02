@@ -10,7 +10,7 @@ from multiprocess import Pool
 from typing import Union, Optional, Any
 from functools import partial
 from fetools.utils.d1g1tparser import ChartTableFormatter
-from fetools.exceptions import NoResponseError
+from fetools.utils.exceptions import NoResponseError
 
 
 from drf_client.connection import (  # type: ignore[import-untyped]
