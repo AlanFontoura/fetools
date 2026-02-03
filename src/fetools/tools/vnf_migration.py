@@ -294,9 +294,16 @@ class VnfMigrationProcessor:
         
         # Group by Household
         households = self.df["Household ID"].unique()
+        mapping_data = []
+
         # Chunking
         for i in range(0, len(households), self.config.batch_size):
+            batch_index = i // self.config.batch_size
             batch_hh = households[i : i + self.config.batch_size]
+            
+            for hh in batch_hh:
+                mapping_data.append({"Household ID": hh, "Batch Index": batch_index})
+
             batch_df = self.df[self.df["Household ID"].isin(batch_hh)].copy()
             
             if batch_df.empty:
@@ -332,7 +339,7 @@ class VnfMigrationProcessor:
 
             # Save Inputs
             final_inputs.drop(columns="Household ID").to_csv(
-                output_dir / "inputs" / f"own-analytics-set-{i//self.config.batch_size}.csv", 
+                output_dir / "inputs" / f"own-analytics-set-{batch_index}.csv", 
                 index=False
             )
 
@@ -344,7 +351,7 @@ class VnfMigrationProcessor:
             
             # Save Portfolios
             portfolios.to_csv(
-                output_dir / "portfolios" / f"portfolio-set-{i//self.config.batch_size}.csv", 
+                output_dir / "portfolios" / f"portfolio-set-{batch_index}.csv", 
                 index=False
             )
 
@@ -374,15 +381,90 @@ class VnfMigrationProcessor:
                 bv[c] = 0
             
             # Save BV
-            bv_dir = output_dir / "bookvalues" / f"bv-set-{i//self.config.batch_size}"
+            bv_dir = output_dir / "bookvalues" / f"bv-set-{batch_index}"
             os.makedirs(bv_dir, exist_ok=True)
-            bv.to_csv(bv_dir / f"bv-set-{i//self.config.batch_size}_USD.csv", index=False)
+            bv.to_csv(bv_dir / f"bv-set-{batch_index}_USD.csv", index=False)
+
+        # --- Misc Files (Configs & Offsets) ---
+        misc = MiscFiles(self.df, self.stitching_date)
+        hist_conf, pres_conf = misc.create_portfolio_configurations_file()
+        offset_trx = misc.create_offset_transactions()
+        
+        hist_conf.to_csv(output_dir / "PortfolioConfigs_Historical.csv", index=False)
+        pres_conf.to_csv(output_dir / "PortfolioConfigs_Present.csv", index=False)
+        offset_trx.to_csv(output_dir / "OffsetTransactions.csv", index=False)
+        
+        # Save Household Mapping
+        pd.DataFrame(mapping_data).to_csv(output_dir / "HouseholdMapping.csv", index=False)
 
     def run(self):
         self.load_data()
         self.adjust_start_dates()
         self.apply_algebraic_plugs()
         self.generate_outputs()
+
+
+class MiscFiles:
+    def __init__(self, df: pd.DataFrame, stitching_date: pd.Timestamp):
+        self.df = df
+        self.stitching_date = stitching_date.strftime("%Y-%m-%d")
+
+    def create_portfolio_configurations_file(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        # Historical Config
+        historical = (
+            self.df[["Portfolio Firm Provided Key", "Date"]]
+            .copy()
+            .drop_duplicates("Portfolio Firm Provided Key", keep="first")
+            .reset_index(drop=True)
+            .rename(columns={"Portfolio Firm Provided Key": "CustodianAccountID"})
+        )
+        historical["SleeveID"] = historical["CustodianAccountID"].astype(str) + "_PrimarySleeve"
+        historical["Portfolio In Terms Of"] = "Transactions"
+        historical["Tracking Type"] = "OwnAnalytics"
+        historical["Are Splits Per Position"] = False
+        historical["Are Cashflows Per Position"] = True
+        
+        # Present Config
+        present = historical.copy()
+        present["Date"] = self.stitching_date
+        present["Tracking Type"] = "Transactions"
+
+        return historical, present
+
+    def create_offset_transactions(self) -> pd.DataFrame:
+        # Filter for last date and non-zero value
+        offset = self.df.copy()
+        last_date = offset["Date"].max()
+        
+        # We need the Value at the stitching date (last date in DF) to offset it
+        mask = (offset["Date"] == last_date) & (offset["Value"] != 0)
+        offset = offset.loc[mask, ["Portfolio Firm Provided Key", "Value"]].copy()
+        
+        offset = offset.rename(columns={
+            "Portfolio Firm Provided Key": "Custodian Account ID",
+            "Value": "Amount"
+        })
+        
+        # If Amount > 0 (Long), we need to Transfer Out to zero it.
+        # If Amount < 0 (Short), we need to Transfer In to zero it.
+        offset["Type"] = np.where(
+            offset["Amount"] > 0, 
+            "Transfer Security Out", 
+            "Transfer Security In"
+        )
+        
+        offset["Amount"] = offset["Amount"].abs()
+        offset["Quantity"] = offset["Amount"]
+        offset["Market Value in Transaction Currency"] = offset["Amount"]
+        
+        offset["Process Date"] = self.stitching_date
+        offset["Settle Date"] = self.stitching_date
+        offset["Trade Date"] = self.stitching_date
+        offset["Currency Name"] = "USD"
+        offset["Instrument ID"] = "history_instrument_USD" # Matching generic format
+        offset["Transaction ID"] = "vnf_transfer_" + offset["Custodian Account ID"].astype(str)
+        
+        return offset
 
 def main():
     if len(sys.argv) < 2:
