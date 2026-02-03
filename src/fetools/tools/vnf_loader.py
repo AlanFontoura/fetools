@@ -19,7 +19,7 @@ class VnfConfig:
     plug_constants: Dict[str, float]
 
 
-class VnfMigrationProcessor:
+class VnFLoader:
     def __init__(self, config_path: str):
         self.config = self._load_config(config_path)
         self.stitching_date = pd.to_datetime(self.config.stitching_date)
@@ -562,10 +562,10 @@ class MiscFiles:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python vnf_migration.py <config.toml>")
+        print("Usage: python vnf_loader.py <config.toml>")
         return
 
-    processor = VnfMigrationProcessor(sys.argv[1])
+    processor = VnFLoader(sys.argv[1])
     processor.run()
 
 
