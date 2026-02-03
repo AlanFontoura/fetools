@@ -1,0 +1,31 @@
+[base]
+input_file = "path/to/input.csv"
+output_dir = "data/outputs/vnf_generic/"
+stitching_date = "2026-01-01"
+
+[logic]
+apply_plugs = true
+
+[output]
+batch_size = 20
+
+[column_map]
+# Maps Input CSV Header -> Internal Name
+# Internal Names: Portfolio Firm Provided Key, Date, Value, TWR_to_match, FinTransfer, OprTransfer, Fees, Expenses, Household ID
+AccountCode = "Portfolio Firm Provided Key"
+TradeDate = "Date"
+MarketValue = "Value"
+IRR = "TWR_to_match"
+NetTransfers = "FinTransfer"
+NetAdditions = "OprTransfer"
+Fees = "Fees"
+Expenses = "Expenses"
+HouseholdID = "Household ID"
+
+[plugs]
+default_cf_factor = 0.2
+alt_mv_threshold = 0.1
+numerator_sq_factor = 0.24
+numerator_cross_factor = 0.2
+denominator_val_factor = 1.2
+denominator_mv_factor = 1.0
