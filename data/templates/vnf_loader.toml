@@ -24,9 +24,15 @@ Expenses = "Expenses"
 HouseholdID = "Household ID"
 
 [plugs]
+# Coefficient applied to Market Value to estimate initial Cash Flow plug
 default_cf_factor = 0.2
+# Threshold ratio (End MV / Start MV). If below this (e.g. 10%), use alternative logic for small ending positions.
 alt_mv_threshold = 0.1
+# Coefficient for (Value^2) in the quadratic equation numerator
 numerator_sq_factor = 0.24
+# Coefficient for (Value * CashFlow) in the quadratic equation numerator
 numerator_cross_factor = 0.2
+# Coefficient for Value in the quadratic equation denominator
 denominator_val_factor = 1.2
+# Coefficient for Previous Market Value in the quadratic equation denominator
 denominator_mv_factor = 1.0
