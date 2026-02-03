@@ -38,3 +38,6 @@ ehthumbs.db
 
 .gemini/
 gha-creds-*.json
+
+# Ignore ipython notebooks
+*.ipynb

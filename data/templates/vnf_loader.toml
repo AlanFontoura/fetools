@@ -1,0 +1,38 @@
+[base]
+input-file = "path/to/input.csv"
+output-dir = "data/outputs/vnf_generic/"
+stitching-date = "2026-01-01"
+
+[logic]
+apply-plugs = true
+invert-fees = false
+
+[output]
+batch-size = 20
+
+[column-map]
+# Maps Input CSV Header -> Internal Name
+# Internal Names: Portfolio Firm Provided Key, Date, Value, TWR_to_match, FinTransfer, FinTransferIn, OprTransfer, Fees, Expenses, Household ID
+AccountCode = "Portfolio Firm Provided Key"
+TradeDate = "Date"
+MarketValue = "Value"
+IRR = "TWR_to_match"
+NetTransfers = "FinTransfer"
+NetAdditions = "OprTransfer"
+Fees = "Fees"
+Expenses = "Expenses"
+HouseholdID = "Household ID"
+
+[plugs]
+# Coefficient applied to Market Value to estimate initial Cash Flow plug
+default-cf-factor = 0.2
+# Threshold ratio (End MV / Start MV). If below this (e.g. 10%), use alternative logic for small ending positions.
+alt-mv-threshold = 0.1
+# Coefficient for (Value^2) in the quadratic equation numerator
+numerator-sq-factor = 0.24
+# Coefficient for (Value * CashFlow) in the quadratic equation numerator
+numerator-cross-factor = 0.2
+# Coefficient for Value in the quadratic equation denominator
+denominator-val-factor = 1.2
+# Coefficient for Previous Market Value in the quadratic equation denominator
+denominator-mv-factor = 1.0
