@@ -1,18 +1,18 @@
 [base]
-input_file = "path/to/input.csv"
-output_dir = "data/outputs/vnf_generic/"
-stitching_date = "2026-01-01"
+input-file = "path/to/input.csv"
+output-dir = "data/outputs/vnf_generic/"
+stitching-date = "2026-01-01"
 
 [logic]
-apply_plugs = true
-invert_fees = false
+apply-plugs = true
+invert-fees = false
 
 [output]
-batch_size = 20
+batch-size = 20
 
-[column_map]
+[column-map]
 # Maps Input CSV Header -> Internal Name
-# Internal Names: Portfolio Firm Provided Key, Date, Value, TWR_to_match, FinTransfer, OprTransfer, Fees, Expenses, Household ID
+# Internal Names: Portfolio Firm Provided Key, Date, Value, TWR_to_match, FinTransfer, FinTransferIn, OprTransfer, Fees, Expenses, Household ID
 AccountCode = "Portfolio Firm Provided Key"
 TradeDate = "Date"
 MarketValue = "Value"
@@ -25,14 +25,14 @@ HouseholdID = "Household ID"
 
 [plugs]
 # Coefficient applied to Market Value to estimate initial Cash Flow plug
-default_cf_factor = 0.2
+default-cf-factor = 0.2
 # Threshold ratio (End MV / Start MV). If below this (e.g. 10%), use alternative logic for small ending positions.
-alt_mv_threshold = 0.1
+alt-mv-threshold = 0.1
 # Coefficient for (Value^2) in the quadratic equation numerator
-numerator_sq_factor = 0.24
+numerator-sq-factor = 0.24
 # Coefficient for (Value * CashFlow) in the quadratic equation numerator
-numerator_cross_factor = 0.2
+numerator-cross-factor = 0.2
 # Coefficient for Value in the quadratic equation denominator
-denominator_val_factor = 1.2
+denominator-val-factor = 1.2
 # Coefficient for Previous Market Value in the quadratic equation denominator
-denominator_mv_factor = 1.0
+denominator-mv-factor = 1.0

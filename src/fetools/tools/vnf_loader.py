@@ -81,6 +81,12 @@ class VnFLoader:
                 )
                 df[col] = 0 if col != "Household ID" else "UNKNOWN"
 
+        # Handle FinTransferIn (Derived or Mapped)
+        if "FinTransferIn" not in df.columns:
+            df["FinTransferIn"] = df["FinTransfer"].clip(lower=0)
+        else:
+            df["FinTransferIn"] = df["FinTransferIn"].fillna(0)
+
         # Apply transformations
         if self.config.logic.invert_fees:
             df["Fees"] = df["Fees"] * -1
@@ -391,6 +397,7 @@ class VnFLoader:
 
             # v5.2 Logic: Fin vs Opr Separation
             bv["DateFinTransfPosVal"] = batch_df["FinTransfer"]
+            bv["DateFinTransfInPosVal"] = batch_df["FinTransferIn"]
             bv["DateOprTransfPosVal"] = batch_df["OprTransfer"]
 
             # Other 5.2 cols
