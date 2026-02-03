@@ -5,6 +5,7 @@ stitching_date = "2026-01-01"
 
 [logic]
 apply_plugs = true
+invert_fees = false
 
 [output]
 batch_size = 20

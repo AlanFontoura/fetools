@@ -2,56 +2,61 @@ import os
 import sys
 import pandas as pd
 import numpy as np
-import tomllib
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Any, List
+from dataclass_binder import Binder
+
+
+@dataclass
+class BaseConfig:
+    input_file: str
+    output_dir: str
+    stitching_date: str
+
+
+@dataclass
+class LogicConfig:
+    apply_plugs: bool = False
+    invert_fees: bool = False
+
+
+@dataclass
+class OutputConfig:
+    batch_size: int = 20
+
+
+@dataclass
+class PlugsConfig:
+    default_cf_factor: float = 0.2
+    alt_mv_threshold: float = 0.1
+    numerator_sq_factor: float = 0.24
+    numerator_cross_factor: float = 0.2
+    denominator_val_factor: float = 1.2
+    denominator_mv_factor: float = 1.0
 
 
 @dataclass
 class VnfConfig:
-    input_file: str
-    output_dir: str
-    stitching_date: str
-    apply_plugs: bool
-    batch_size: int
+    base: BaseConfig
     column_map: Dict[str, str]
-    plug_constants: Dict[str, float]
+    logic: LogicConfig = field(default_factory=LogicConfig)
+    output: OutputConfig = field(default_factory=OutputConfig)
+    plugs: PlugsConfig = field(default_factory=PlugsConfig)
 
 
 class VnFLoader:
     def __init__(self, config_path: str):
         self.config = self._load_config(config_path)
-        self.stitching_date = pd.to_datetime(self.config.stitching_date)
+        self.stitching_date = pd.to_datetime(self.config.base.stitching_date)
         self.df = pd.DataFrame()
 
     def _load_config(self, path: str) -> VnfConfig:
-        with open(path, "rb") as f:
-            data = tomllib.load(f)
-
-        return VnfConfig(
-            input_file=data["base"]["input_file"],
-            output_dir=data["base"]["output_dir"],
-            stitching_date=data["base"]["stitching_date"],
-            apply_plugs=data["logic"].get("apply_plugs", False),
-            batch_size=data["output"].get("batch_size", 20),
-            column_map=data["column_map"],
-            plug_constants=data.get(
-                "plugs",
-                {
-                    "default_cf_factor": 0.2,
-                    "alt_mv_threshold": 0.1,
-                    "numerator_sq_factor": 0.24,
-                    "numerator_cross_factor": 0.2,
-                    "denominator_val_factor": 1.2,
-                    "denominator_mv_factor": 1.0,
-                },
-            ),
-        )
+        return Binder(VnfConfig).parse_toml(path)
 
     def load_data(self):
         """Loads and normalizes the input CSV based on column mapping."""
-        df = pd.read_csv(self.config.input_file)
+        df = pd.read_csv(self.config.base.input_file)
 
         # Rename columns based on config
         df = df.rename(columns=self.config.column_map)
@@ -75,6 +80,11 @@ class VnFLoader:
                     f"Warning: Column '{col}' not found in input. Filling with 0/Empty."
                 )
                 df[col] = 0 if col != "Household ID" else "UNKNOWN"
+
+        # Apply transformations
+        if self.config.logic.invert_fees:
+            df["Fees"] = df["Fees"] * -1
+            df["Expenses"] = df["Expenses"] * -1
 
         # Standardize Date
         df["Date"] = pd.to_datetime(df["Date"])
@@ -108,11 +118,11 @@ class VnFLoader:
         Applies mathematical adjustments to Market Value and Cashflows
         to ensure TWR alignment.
         """
-        if not self.config.apply_plugs:
+        if not self.config.logic.apply_plugs:
             return
 
         df = self.df.copy()
-        const = self.config.plug_constants
+        const = self.config.plugs
 
         # Calculate previous values
         df["MarketValuePrev"] = df.groupby("Portfolio Firm Provided Key")[
@@ -141,14 +151,12 @@ class VnFLoader:
 
         # --- Plug Math ---
         # Constants from Config
-        k_cf = const["default_cf_factor"]  # 0.2
-        k_alt = const["alt_mv_threshold"]  # 0.1
-        k_num_sq = const["numerator_sq_factor"]  # 0.24
-        k_num_cross = const["numerator_cross_factor"]  # 0.2
-        k_den_val = const["denominator_val_factor"]  # 1.2
-        k_den_mv = const[
-            "denominator_mv_factor"
-        ]  # 1.0 (implied 1.0 * (1+TWR))
+        k_cf = const.default_cf_factor  # 0.2
+        k_alt = const.alt_mv_threshold  # 0.1
+        k_num_sq = const.numerator_sq_factor  # 0.24
+        k_num_cross = const.numerator_cross_factor  # 0.2
+        k_den_val = const.denominator_val_factor  # 1.2
+        k_den_mv = const.denominator_mv_factor  # 1.0 (implied 1.0 * (1+TWR))
 
         # Initial CF Plug Guess
         df["CF_plug"] = df["Value"] * k_cf
@@ -167,19 +175,12 @@ class VnFLoader:
 
         # Alternative Numerator
         # (Prev^2 * 0.04) - (Prev * CF * 0.2) + (Prev * Val * 0.2)
-        # Note: 0.04 seems derived from 0.2^2? Assuming raw mapping for now.
-        # User requested constants in TOML, I'll use hardcoded for the derived ones or map them if strictly needed.
-        # For simplicity adhering to "simple version", I will map main factors.
-        # 0.04 is (0.2)^2.
-
         mask_alt = is_alt & needs_plug
         if mask_alt.any():
             prev = df.loc[mask_alt, "MarketValuePrev"]
             val = df.loc[mask_alt, "Value"]
             cf = df.loc[mask_alt, "TotalCF"]
 
-            # Use 0.04 as k_cf^2? Or just hardcode as per notebook logic retention?
-            # Keeping notebook logic structure:
             df.loc[mask_alt, "Numerator"] = (
                 (prev**2 * 0.04)
                 - (prev * cf * k_num_cross)
@@ -221,7 +222,6 @@ class VnFLoader:
         plugs = df[valid_plug].copy()
         if not plugs.empty:
             # Map Plug columns to Main columns
-            # The plug essentially creates a dummy entry with a Value and an offsetting Cashflow
             plugs_formatted = pd.DataFrame(
                 {
                     "Portfolio Firm Provided Key": plugs[
@@ -229,12 +229,12 @@ class VnFLoader:
                     ],
                     "Date": plugs["Date_plug"],
                     "Value": plugs["MV_plug"],
-                    "FinTransfer": 0,  # Assuming plug flow goes to Opr or Fin? Notebook puts it in 'DateTransferredPosVal'
-                    "OprTransfer": plugs["CF_plug"],  # Putting it here
+                    "FinTransfer": 0,
+                    "OprTransfer": plugs["CF_plug"],
                     "Fees": 0,
                     "Expenses": 0,
                     "Household ID": plugs["Household ID"],
-                    "TWR_to_match": 0,  # No TWR on plug day
+                    "TWR_to_match": 0,
                     "IsPlug": True,
                 }
             )
@@ -246,33 +246,20 @@ class VnFLoader:
             )
 
             # --- Adjust Original Rows ---
-            # The row *after* the plug (the original row) needs its flow adjusted to offset the plug's flow
-            # Notebook: original['DateTransferredPosVal'] -= plug['CF_plug']
-            # We align by index or key. Since we just concat, let's re-find the rows.
-            # Using merge for safety.
-
-            # Key: Portfolio + Date (Original Date)
             adjustment_map = plugs[
                 ["Portfolio Firm Provided Key", "Date", "CF_plug"]
             ].copy()
-            # Rename Date back to original to match the target row
             adjustment_map = adjustment_map.rename(
                 columns={"CF_plug": "Offset_CF"}
             )
 
-            # We need to subtract the CF_plug from the OprTransfer of the original row
-            # But wait, 'plugs' dataframe has 'Date_plug'. The original row has 'Date'.
-            # We need to join on [Portfolio, Date] where adjustment_map['Date'] == original['Date']
-
-            # Apply adjustment
-            # Iterate or merge? Merge index is safer.
             self.df = self.df.merge(
                 adjustment_map,
                 on=["Portfolio Firm Provided Key", "Date"],
                 how="left",
             )
             mask_adj = self.df["Offset_CF"].notna()
-            # Subtract plug CF from OprTransfer (assuming Opr is the generic bucket)
+            # Subtract plug CF from OprTransfer
             self.df.loc[mask_adj, "OprTransfer"] -= self.df.loc[
                 mask_adj, "Offset_CF"
             ]
@@ -304,25 +291,6 @@ class VnFLoader:
         compl["Currency Split Type"] = "COMPL"
         # Zero out metrics
         compl[cols_to_zero] = 0
-        # Wait, notebook puts Fees/Expenses in COMPL?
-        # Notebook: "now separate fees, expenses and taxes to COMPL node... remove those cash values from the other nodes"
-        # So Base has 0 fees?
-        # Notebook:
-        # main = output_vnf.copy()... all 0
-        # compl = output_vnf.copy()... all 0
-        # output_vnf[['DateFees', ...]] = 0 (Base cleared of fees)
-        # Wait, if compl is all 0, where do fees go?
-        # Re-reading notebook carefully:
-        # "now separate fees... main=copy... compl=copy... remove those cash values from the other nodes"
-        # It seems I might have missed where COMPL gets the fees *assigned*.
-        # Actually, standard VNF pattern:
-        # Base: Value, Transfers.
-        # COMPL: Fees, Expenses (Value=0).
-
-        # Correct Logic:
-        # Base: Keeps Value, Transfers. Sets Fees/Exp to 0.
-        # Main: All 0.
-        # COMPL: Keeps Fees, Expenses. Sets Value/Transfers to 0.
 
         # Restore Fees to COMPL
         compl["Fees"] = df_inputs["Fees"]
@@ -335,7 +303,7 @@ class VnFLoader:
         return pd.concat([base, main, compl], ignore_index=True)
 
     def generate_outputs(self):
-        output_dir = Path(self.config.output_dir)
+        output_dir = Path(self.config.base.output_dir)
         os.makedirs(output_dir / "inputs", exist_ok=True)
         os.makedirs(output_dir / "portfolios", exist_ok=True)
         os.makedirs(output_dir / "bookvalues", exist_ok=True)
@@ -345,9 +313,10 @@ class VnFLoader:
         mapping_data = []
 
         # Chunking
-        for i in range(0, len(households), self.config.batch_size):
-            batch_index = i // self.config.batch_size
-            batch_hh = households[i : i + self.config.batch_size]
+        batch_size = self.config.output.batch_size
+        for i in range(0, len(households), batch_size):
+            batch_index = i // batch_size
+            batch_hh = households[i : i + batch_size]
 
             for hh in batch_hh:
                 mapping_data.append(
@@ -364,9 +333,6 @@ class VnFLoader:
             inputs_df = self.triplicate_nodes(batch_df)
 
             # Map to Final Output Columns
-            # Required: Portfolio Firm Provided Key, Position Firm Provided Key, Date, Value,
-            # DateTransferredPosVal, DateCashTransfer, DateFees, DateExtCashExpenses, Household ID, Quantity, NumUnits
-
             final_inputs = pd.DataFrame()
             final_inputs["Portfolio Firm Provided Key"] = inputs_df[
                 "Portfolio Firm Provided Key"
@@ -383,8 +349,6 @@ class VnFLoader:
             final_inputs["NumUnits"] = inputs_df["Value"]
 
             # Transfers
-            # FinTransfer -> DateCashTransfer (External)
-            # OprTransfer -> DateTransferredPosVal (Internal/Generic)
             final_inputs["DateCashTransfer"] = inputs_df["FinTransfer"]
             final_inputs["DateTransferredPosVal"] = inputs_df["OprTransfer"]
 
@@ -402,7 +366,6 @@ class VnFLoader:
             )
 
             # --- Portfolios File ---
-            # Distinct list of portfolios from Base data
             portfolios = pd.DataFrame()
             portfolios["Firm Provided Key"] = (
                 batch_df["Portfolio Firm Provided Key"].astype(str)
@@ -419,17 +382,12 @@ class VnFLoader:
             )
 
             # --- BookValues File (v5.2 USD) ---
-            # Columns: PortfolioID, InstrumentID, Date, CurrencySplitType, DateTradeAmt,
-            # DateFinTransfPosVal, DateOprTransfPosVal, ...
-
             bv = pd.DataFrame()
             bv["PortfolioID"] = batch_df["Portfolio Firm Provided Key"]
             bv["InstrumentID"] = "history_instrument_USD"
             bv["Date"] = batch_df["Date"]
             bv["CurrencySplitType"] = "0"
-            bv["DateTradeAmt"] = (
-                0  # Default for now as 'cash from trades' was not requested/implemented
-            )
+            bv["DateTradeAmt"] = 0
 
             # v5.2 Logic: Fin vs Opr Separation
             bv["DateFinTransfPosVal"] = batch_df["FinTransfer"]
@@ -461,6 +419,7 @@ class VnFLoader:
         misc = MiscFiles(self.df, self.stitching_date)
         hist_conf, pres_conf = misc.create_portfolio_configurations_file()
         offset_trx = misc.create_offset_transactions()
+        instr_importer = misc.create_instrument_importer()
 
         hist_conf.to_csv(
             output_dir / "PortfolioConfigs_Historical.csv", index=False
@@ -469,6 +428,9 @@ class VnFLoader:
             output_dir / "PortfolioConfigs_Present.csv", index=False
         )
         offset_trx.to_csv(output_dir / "OffsetTransactions.csv", index=False)
+        instr_importer.to_csv(
+            output_dir / "Instrument_Importer.csv", index=False
+        )
 
         # Save Household Mapping
         pd.DataFrame(mapping_data).to_csv(
@@ -515,6 +477,17 @@ class MiscFiles:
         present["Tracking Type"] = "Transactions"
 
         return historical, present
+
+    def create_instrument_importer(self) -> pd.DataFrame:
+        """Creates a definition file for the legacy instruments."""
+        # Using the standard format history_instrument_USD as established in generate_outputs
+        data = {
+            "Instrument ID": ["history_instrument_USD"],
+            "Instrument Name": ["Legacy Position USD"],
+            "Currency Name": ["USD"],
+            "Firm Security Type Name": ["Equity"],
+        }
+        return pd.DataFrame(data)
 
     def create_offset_transactions(self) -> pd.DataFrame:
         # Filter for last date and non-zero value
