@@ -4,29 +4,29 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Dict
 from dataclass_binder import Binder
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseConfig:
     input_file: str
     output_dir: str
     stitching_date: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class LogicConfig:
     apply_plugs: bool = False
     invert_fees: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class OutputConfig:
     batch_size: int = 20
 
 
-@dataclass
+@dataclass(frozen=True)
 class PlugsConfig:
     default_cf_factor: float = 0.2
     alt_mv_threshold: float = 0.1
@@ -36,7 +36,7 @@ class PlugsConfig:
     denominator_mv_factor: float = 1.0
 
 
-@dataclass
+@dataclass(frozen=True)
 class VnfConfig:
     base: BaseConfig
     column_map: Dict[str, str]
@@ -427,6 +427,8 @@ class VnFLoader:
         hist_conf, pres_conf = misc.create_portfolio_configurations_file()
         offset_trx = misc.create_offset_transactions()
         instr_importer = misc.create_instrument_importer()
+        market_price = misc.create_market_price_importer()
+        summary_md = misc.create_summary_report(mapping_data)
 
         hist_conf.to_csv(
             output_dir / "PortfolioConfigs_Historical.csv", index=False
@@ -438,6 +440,12 @@ class VnFLoader:
         instr_importer.to_csv(
             output_dir / "Instrument_Importer.csv", index=False
         )
+        market_price.to_csv(
+            output_dir / "MarketPrice_Importer.csv", index=False
+        )
+
+        with open(output_dir / "Summary.md", "w") as f:
+            f.write(summary_md)
 
         # Save Household Mapping
         pd.DataFrame(mapping_data).to_csv(
@@ -495,6 +503,78 @@ class MiscFiles:
             "Firm Security Type Name": ["Equity"],
         }
         return pd.DataFrame(data)
+
+    def create_market_price_importer(self) -> pd.DataFrame:
+        """Creates the MarketPrice Importer file."""
+        min_date = self.df["Date"].min()
+        target_date = min_date - pd.Timedelta(days=1)
+
+        data = {
+            "Date": [target_date, target_date],
+            "Instrument ID": [
+                "history_instrument_USD",
+                "history_instrument_USD",
+            ],
+            "ClosingPrice": [1.0, 1.0],
+            "Source": ["Firm", "Custodian"],
+        }
+        return pd.DataFrame(data)
+
+    def create_summary_report(self, mapping_data: list) -> str:
+        """Creates the summary markdown report."""
+        mapping_df = pd.DataFrame(mapping_data)
+        batches = mapping_df["Batch Index"].unique()
+        households = self.df["Household ID"].unique()
+        portfolios = self.df["Portfolio Firm Provided Key"].unique()
+
+        hh_counts = self.df.groupby("Household ID")[
+            "Portfolio Firm Provided Key"
+        ].nunique()
+        max_household = hh_counts.idxmax()
+        max_portfolio_count = hh_counts.max()
+        min_household = hh_counts.idxmin()
+        min_portfolio_count = hh_counts.min()
+
+        earliest_date = self.df["Date"].min().strftime("%Y-%m-%d")
+        stitching_prev = (
+            pd.to_datetime(self.stitching_date) - pd.Timedelta(days=1)
+        ).strftime("%Y-%m-%d")
+
+        return f"""
+# Summary
+- Number of batches processed: {len(batches)}
+- Number of households processed: {len(households)}
+- Number of portfolios processed: {len(portfolios)}
+- Household with the most portfolios: {max_household}, with {max_portfolio_count} portfolios
+- Household with the least portfolios: {min_household}, with {min_portfolio_count} portfolios
+
+# Next steps
+- Review the generated CSV files in the output directory
+- Load the Instrument Importer and Market Price Importer files through Django API Importer
+- Load the Offset Transactions through Django API Importer to zero out positions as of the stitching date
+- Load the Portfolio Configurations into the target environment, using the 'Loader of Loaders' rundeck job
+- If needed, adjust the account opened and inception dates
+- Folders 'inputs', 'portfolios', and 'bookvalues' must be uploaded to an S3 bucket (usually d1g1t-client-<ca/us>/<clientname>/<vnf_folder>/)
+- If you set the output folder in the TOML config to an S3 path, files will already be uploaded there
+
+# Refresh Process
+- Refresh the environment in two steps:
+    1. First refresh goes from the earliest date in the data up to the day before the stitching date. Necessary entries under "params" are:
+        a. "start_date": "{earliest_date}"
+        b. "end_date": "{stitching_prev}"
+        c. "own_analytics_folder": "s3://d1g1t-client-<ca/us>/<clientname>/<vnf_folder>/inputs/"
+        d. "portfolios_folder": "s3://d1g1t-client-<ca/us>/<clientname>/<vnf_folder>/portfolios/"
+        e. "book_analytics_folder": "s3://d1g1t-client-<ca/us>/<clientname>/<vnf_folder>/bookvalues/"
+        f. "is_own_analytics_refresh": true
+    2. Necessary entries after "params" are:
+        a. "has_ncp": false
+        b. "has_funds": false
+        c. "run_recon": false
+        d. "clear_type": "all-include-historical"
+        e. "collapse_sma": false
+        f. "prime_method": "skip"
+    3. Second refresh goes from the stitching date to present day, using standard parameters
+"""
 
     def create_offset_transactions(self) -> pd.DataFrame:
         # Filter for last date and non-zero value
