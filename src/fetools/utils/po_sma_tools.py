@@ -387,9 +387,6 @@ def add_zero_entries(df: pd.DataFrame) -> pd.DataFrame:
     return new_df
 
 
-import numpy as np
-
-
 def resolve_effective_ownership(df: pd.DataFrame) -> pd.DataFrame:
     timeline = sorted(df["Date"].unique())
     all_snapshots = []
