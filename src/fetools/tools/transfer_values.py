@@ -6,7 +6,7 @@ from typing import Optional, Any
 import json
 from pprint import pprint
 
-from fetools.api.base_main import BaseMain
+from fetools.api.base_main import BaseMain, D1g1tApi
 from fetools.utils.exceptions import NoResponseError
 from fetools.utils.d1g1tparser import ChartTableFormatter
 
@@ -17,6 +17,7 @@ class TransferValuesWizard(BaseMain):
     def __init__(self):
         super().__init__()
         self._transaction_payload: dict = {}
+        self._entity_id: str = ""
 
     def add_extra_args(self):
         """
@@ -26,6 +27,17 @@ class TransferValuesWizard(BaseMain):
         pre-fill via CLI, but the request asks for a wizard.
         """
         pass
+
+    @property
+    def entity_id(self) -> str | Any:
+        if not self._entity_id:
+            api_call = self.api.data
+            api_call._store[
+                "base_url"
+            ] += f"{self.entity_level}/{self.firm_provided_key}"
+            response = api_call.get()
+            self._entity_id = response.get("entity_id", "")
+        return self._entity_id
 
     @property
     def transaction_payload(self) -> dict:
@@ -55,6 +67,24 @@ class TransferValuesWizard(BaseMain):
             transaction_payload["control"]["selected_entities"] = entity
             self._transaction_payload = transaction_payload
         return self._transaction_payload
+
+    @property
+    def transaction_types(self) -> list[str]:
+        return [
+            "Transfer Cash In",
+            "Transfer Cash Out",
+            "Internal Transfer Cash In",
+            "Internal Transfer Cash Out",
+            "Transfer Security In",
+            "Transfer Security Out",
+            "Internal Transfer Security In",
+            "Internal Transfer Security Out",
+            "Deposit",
+            "Withdrawal",
+        ]
+
+    def clean_url(self, url: str) -> str:
+        return url.split("/")[-2]
 
     def load_json_template(self, path: str) -> dict | Any:
         with open(path, "r", encoding="utf-8") as f:
@@ -93,13 +123,38 @@ class TransferValuesWizard(BaseMain):
             except ValueError:
                 print("Invalid date format. Please use YYYY-MM-DD.")
 
-    def get_entity_id(self) -> str | Any:
-        api_call = self.api.data
-        api_call._store[
-            "base_url"
-        ] += f"{self.entity_level}/{self.firm_provided_key}"
-        response = api_call.get()
-        return response.get("entity_id", "")
+    def compute_transfer_values(self):
+        transactions = self.get_transactions()
+        self.add_market_prices(transactions)
+
+    def get_transactions(self) -> pd.DataFrame:
+        payload = self.transaction_payload
+        calc_call = self.api.calc("log-details-single")
+        response = calc_call.post(data=payload)
+        if not response:
+            raise NoResponseError("No response received for transactions.")
+        parser = ChartTableFormatter(response, payload)
+        res = parser.parse_data()
+        res = res[res["Transaction Type"].isin(self.transaction_types)]
+        if self.instrument_id:
+            res = res[res["Security ID"] == self.instrument_id]
+        return res
+
+    def add_market_prices(self, trx: pd.DataFrame) -> pd.DataFrame:
+        instrument_ids = trx["Security ID"].unique().tolist()
+        api_call = self.api.data.marketprices
+        pprint(api_call._store["base_url"])
+        price_list = []
+        for instrument in instrument_ids:
+            response = api_call.get(extra="limit=1000")
+            res = pd.DataFrame(response["results"])
+            price_list.append(res)
+        prices = pd.concat(price_list, ignore_index=True)
+        prices["instrument"] = [
+            self.clean_url(url) for url in prices["instrument"]
+        ]
+        pprint(prices)
+        return prices
 
     def run_wizard(self):
         print("--- Transfer Values Wizard ---")
@@ -131,42 +186,14 @@ class TransferValuesWizard(BaseMain):
         # Login
         self.domain = self.get_domain()
         self.options["DOMAIN"] = self.domain
-        # Re-initialize API with the new domain
-        from fetools.api.base_main import D1g1tApi
-
         self.api = D1g1tApi(self.options)
 
         print(f"\nLogging into {self.domain}...")
         if self.login():
-            self.entity_id = self.get_entity_id()
-            self.get_transactions()
-            # self.execute_transfer_values(self.transaction_payload)
+            self.compute_transfer_values()
         else:
             print("Login failed. Exiting.")
             sys.exit(1)
-
-    def execute_transfer_values(self, payload: dict):
-        """
-        Placeholder for the actual API calls.
-        """
-        LOG.info(f"Executing transfer values with payload: {payload}")
-        # Example API calls:
-        # try:
-        #     # self.api.data.transfer_values.post(data=payload)
-        #     print("Transfer values call successful.")
-        # except Exception as e:
-        #     LOG.error(f"Error during API call: {e}")
-        print("Wizard finished successfully (Mock execution).")
-
-    def get_transactions(self) -> pd.DataFrame:
-        payload = self.transaction_payload
-        calc_call = self.api.calc("log-details-single")
-        response = calc_call.post(data=payload)
-        if not response:
-            raise NoResponseError("No response received for transactions.")
-        parser = ChartTableFormatter(response, payload)
-        res = parser.parse_data()
-        return res
 
     def main(self):
         # Override main to run the wizard instead of the standard flow
