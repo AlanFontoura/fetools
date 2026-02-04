@@ -37,6 +37,7 @@ dev = [
 [project.scripts]
 compliance-report = "fetools.tools.compliance_report:main"
 vnf-loader = "fetools.tools.vnf_loader:main"
+transfer-values = "fetools.tools.transfer_values:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

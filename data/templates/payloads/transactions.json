@@ -1,0 +1,205 @@
+{
+    "options": {
+        "single_result": true,
+        "date_range": {
+            "value": "custom",
+            "label": "Custom",
+            "start_date": null,
+            "end_date": null
+        },
+        "order_by": [
+            "r-trade-date"
+        ]
+    },
+    "control": {
+        "selected_entities": {}
+    },
+    "settings": {
+        "currency": null,
+        "date": {
+            "date": null,
+            "value": "specificDate"
+        }
+    },
+    "groups": {
+        "selected": []
+    },
+    "metrics": {
+        "selected": [
+            {
+                "order": 0,
+                "slug": "r-account-name",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Account Name"
+            },
+            {
+                "order": 1,
+                "slug": "r-accrued-interest-reporting-ccy",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Accrued Interest"
+            },
+            {
+                "order": 2,
+                "slug": "r-comments",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Comment"
+            },
+            {
+                "order": 3,
+                "slug": "r-display-net-transaction-amount",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Transaction Amount"
+            },
+            {
+                "order": 4,
+                "slug": "r-effect-on-cash-reporting-ccy",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Effect on Cash"
+            },
+            {
+                "order": 5,
+                "slug": "r-instrument-calculated-symbol",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Symbol"
+            },
+            {
+                "order": 6,
+                "slug": "r-instrument-firm-provided-key",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Security ID"
+            },
+            {
+                "order": 7,
+                "slug": "r-instrument-name",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Security Name"
+            },
+            {
+                "order": 8,
+                "slug": "r-instrument-product-type",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Security Type"
+            },
+            {
+                "order": 9,
+                "slug": "r-process-date",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Process Date"
+            },
+            {
+                "order": 10,
+                "slug": "r-settle-date",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Settle Date"
+            },
+            {
+                "order": 11,
+                "slug": "r-source-type",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Transaction Code"
+            },
+            {
+                "order": 12,
+                "slug": "r-source-type-is-cancelled",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Is Cancelled"
+            },
+            {
+                "order": 13,
+                "slug": "r-trade-date",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Trade date"
+            },
+            {
+                "order": 14,
+                "slug": "r-transaction-account",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Account ID"
+            },
+            {
+                "order": 15,
+                "slug": "r-transaction-amount",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "d1g1t Transaction Amount (Gross)"
+            },
+            {
+                "order": 16,
+                "slug": "r-transaction-book-value",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Book Value"
+            },
+            {
+                "order": 17,
+                "slug": "r-transaction-book-value-increment",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Effect on Book Value"
+            },
+            {
+                "order": 18,
+                "slug": "r-transaction-cash-position-book-value-increment",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Effect of Cash Book Value"
+            },
+            {
+                "order": 19,
+                "slug": "r-transaction-id",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Transaction ID"
+            },
+            {
+                "order": 20,
+                "slug": "r-transaction-quantity",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "d1g1t Transaction Quantity"
+            },
+            {
+                "order": 21,
+                "slug": "r-type-name",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Transaction Type"
+            }
+        ]
+    },
+    "pagination": {
+        "parent_path": "root",
+        "offset": 0,
+        "size": 9999,
+        "order_by": [
+            "r-trade-date"
+        ],
+        "filtering": {
+            "is_pending_transaction": {
+                "format": "boolean",
+                "join_operator": "AND",
+                "expressions": [
+                    {
+                        "value": false,
+                        "operator": "is"
+                    }
+                ]
+            }
+        }
+    }
+}

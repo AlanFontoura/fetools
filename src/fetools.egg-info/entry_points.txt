@@ -1,3 +1,4 @@
 [console_scripts]
 compliance-report = fetools.tools.compliance_report:main
+transfer-values = fetools.tools.transfer_values:main
 vnf-loader = fetools.tools.vnf_loader:main
