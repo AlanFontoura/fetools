@@ -31,12 +31,9 @@ class TransferValuesWizard(BaseMain):
     @property
     def entity_id(self) -> str | Any:
         if not self._entity_id:
-            api_call = self.api.data
-            api_call._store[
-                "base_url"
-            ] += f"{self.entity_level}/{self.firm_provided_key}"
-            response = api_call.get()
-            self._entity_id = response.get("entity_id", "")
+            self._entity_id = self.get_entity_id(
+                self.entity_level, self.firm_provided_key
+            )
         return self._entity_id
 
     @property
@@ -85,6 +82,12 @@ class TransferValuesWizard(BaseMain):
 
     def clean_url(self, url: str) -> str:
         return url.split("/")[-2]
+
+    def get_entity_id(self, entity_type, entity_fpk) -> str:
+        api_call = self.api.data
+        api_call._store["base_url"] += f"{entity_type}/{entity_fpk}"
+        response = api_call.get()
+        return response.get("entity_id", "")
 
     def load_json_template(self, path: str) -> dict | Any:
         with open(path, "r", encoding="utf-8") as f:
@@ -140,21 +143,8 @@ class TransferValuesWizard(BaseMain):
             res = res[res["Security ID"] == self.instrument_id]
         return res
 
-    def add_market_prices(self, trx: pd.DataFrame) -> pd.DataFrame:
-        instrument_ids = trx["Security ID"].unique().tolist()
-        api_call = self.api.data.marketprices
-        pprint(api_call._store["base_url"])
-        price_list = []
-        for instrument in instrument_ids:
-            response = api_call.get(extra="limit=1000")
-            res = pd.DataFrame(response["results"])
-            price_list.append(res)
-        prices = pd.concat(price_list, ignore_index=True)
-        prices["instrument"] = [
-            self.clean_url(url) for url in prices["instrument"]
-        ]
-        pprint(prices)
-        return prices
+    def add_market_prices(self) -> pd.DataFrame:
+        return pd.DataFrame()  # Placeholder for actual implementation
 
     def run_wizard(self):
         print("--- Transfer Values Wizard ---")
