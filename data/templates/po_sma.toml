@@ -1,0 +1,6 @@
+type = "both"                                                     # Can be "po", "sma", or "both"
+first-transaction-date = "2020-12-31"                             # Format: "YYYY-MM-DD"
+output-folder = "data/outputs/PO_SMA/<clientname>/"               # Directory for output files
+account-file = "data/inputs/PO_SMA/<clientname>/Account.csv"      # Path to account data CSV
+ownership-file = "data/inputs/PO_SMA/<clientname>/Ownership.csv"  # Path to ownership data CSV
+

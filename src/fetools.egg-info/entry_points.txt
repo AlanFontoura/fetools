@@ -1,3 +1,4 @@
 [console_scripts]
 compliance-report = fetools.tools.compliance_report:main
+po-sma = fetools.tools.po_sma:main
 vnf-loader = fetools.tools.vnf_loader:main

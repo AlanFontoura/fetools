@@ -1,6 +1,11 @@
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass
+from pathlib import Path
+import os
+import sys
+from dataclass_binder import Binder
+
 
 """
 Account input file (fields with a * are optional):
@@ -57,7 +62,7 @@ class Structure:
         self._instruments: pd.DataFrame | None = None
         self._account_create: pd.DataFrame | None = None
         self._account_remap: pd.DataFrame | None = None
-        self._fund_client_ownership: pd.DataFrame | None = None
+        self._main_fund_client_ownership: pd.DataFrame | None = None
 
     @property
     def funds(self) -> pd.DataFrame:
@@ -239,8 +244,8 @@ class Structure:
         return self._account_remap
 
     @property
-    def fund_client_ownership(self) -> pd.DataFrame:
-        if self._fund_client_ownership is None:
+    def main_fund_client_ownership(self) -> pd.DataFrame | None:
+        if self._main_fund_client_ownership is None:
             fund_client_ownership = self.df.copy()
             fund_client_ownership["Class Series ID"] = [
                 f"{self.type}_classseries_{account_id}"
@@ -261,8 +266,8 @@ class Structure:
                 "Percent",
             ]
             fund_client_ownership = fund_client_ownership[cols]
-            self._fund_client_ownership = fund_client_ownership
-        return self._fund_client_ownership
+            self._main_fund_client_ownership = fund_client_ownership
+        return self._main_fund_client_ownership
 
     def merge(self, other):
         if self.type == other.type:
@@ -283,23 +288,50 @@ class Structure:
         self._account_remap = pd.concat(
             [self.account_remap, other.account_remap], ignore_index=True
         )
-        self._fund_client_ownership = pd.concat(
-            [self.fund_client_ownership, other.fund_client_ownership],
+        self._main_fund_client_ownership = pd.concat(
+            [
+                self.main_fund_client_ownership,
+                other.main_fund_client_ownership,
+            ],
             ignore_index=True,
         )
         self.type = "both"
         return self
 
+    def write_to_folder(self, folder_path: str):
+        os.makedirs(os.path.join(folder_path, "funds"), exist_ok=True)
+        os.makedirs(os.path.join(folder_path, "classseries"), exist_ok=True)
+        os.makedirs(os.path.join(folder_path, "importers"), exist_ok=True)
+        self.funds.to_csv(f"{folder_path}/funds/funds.csv", index=False)
+        self.classseries.to_csv(
+            f"{folder_path}/classseries/classseries.csv", index=False
+        )
+        self.instruments.to_csv(
+            f"{folder_path}/importers/Instruments.csv", index=False
+        )
+        self.account_create.to_csv(
+            f"{folder_path}/importers/MainAccountCreate.csv", index=False
+        )
+        self.account_remap.to_csv(
+            f"{folder_path}/importers/AccountRemap.csv", index=False
+        )
+        if self.main_fund_client_ownership is not None:
+            self.main_fund_client_ownership.to_csv(
+                f"{folder_path}/importers/MainFundClientOwnership.csv",
+                index=False,
+            )
 
-def create_structure_files(file_path: str, type: str) -> Structure:
-    df = pd.read_csv(file_path)
-    if type == "sma":
+
+def create_structure_files(config: PO_SMA_Config) -> Structure:
+    df = pd.read_csv(config.account_file)
+    # TODO: Add logic to filter account file based on ownership data if needed
+    if config.type == "sma":
         structure = Structure(df, type="sma")
 
-    if type == "po":
+    if config.type == "po":
         structure = Structure(df, type="po")
 
-    if type == "both":
+    if config.type == "both":
         sma_df = df[df["Is SMA"]]
         po_df = df[~df["Is SMA"]]
         sma_structure = Structure(sma_df, type="sma")
@@ -385,9 +417,6 @@ def add_zero_entries(df: pd.DataFrame) -> pd.DataFrame:
         drop=True
     )
     return new_df
-
-
-import numpy as np
 
 
 def resolve_effective_ownership(df: pd.DataFrame) -> pd.DataFrame:
@@ -498,7 +527,7 @@ def get_ownership_file(file_path: str | None) -> pd.DataFrame:
     df = validate_ownership_file(df)
     df = add_zero_entries(df)
     df = resolve_effective_ownership(df)
-    # extended_df = extend_ownership(df)
+    df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
     return df
 
 
@@ -519,13 +548,175 @@ def filter_ownership_by_date(
 # endregion
 
 
+# region Split Accounts and FCO Loader functions
 def create_split_accounts_file(
     account: pd.DataFrame, ownership: pd.DataFrame
 ) -> pd.DataFrame:
+    ownership = ownership.sort_values(
+        by=["Owned", "Date", "Owner"]
+    ).reset_index(drop=True)
+    ownership_dates = ownership.drop_duplicates(
+        subset=["Owner", "Owned"], keep="first"
+    ).drop(columns=["Percentage"])
+    ownership_pcts = ownership.drop_duplicates(
+        subset=["Owner", "Owned"], keep="last"
+    ).drop(columns=["Date"])
+    ownership = ownership_dates.merge(
+        ownership_pcts,
+        on=["Owner", "Owned"],
+        how="inner",
+    )
     full_data = ownership.merge(
         account,
         left_on="Owned",
         right_on="Client ID",
         how="inner",
     )
+    full_data["Date"] = pd.to_datetime(full_data["Date"])
+    full_data["Opened Date"] = pd.to_datetime(full_data["Opened Date"])
+    full_data["Account Type Name"] = "Other"
+    full_data["Account ID"] = [
+        f"po_split_{account_id}_{owner}"
+        for owner, account_id in zip(
+            full_data["Owner"], full_data["Account ID"]
+        )
+    ]
+    full_data["Account Name"] = [
+        f"{account_name[:90]} - {100*pct:.2f}%"
+        for account_name, pct in zip(
+            full_data["Account Name"], full_data["Percentage"]
+        )
+    ]
+    full_data["Currency Name"] = full_data["Currency"]
+    full_data["Client ID"] = full_data["Owner"]
+    full_data["Date Opened"] = [
+        max(open_date, ownership_date)
+        for open_date, ownership_date in zip(
+            full_data["Opened Date"], full_data["Date"]
+        )
+    ]
+    full_data["Inception Date"] = full_data["Date Opened"]
+    full_data["Rep Code ID"] = full_data["Rep Code"]
+    full_data["Custodian Name"] = full_data["Custodian"]
+    full_data["Advisory Scope Name"] = full_data["Advisory Scope"]
+    full_data["User Defined 1"] = full_data["UDF1"]
+    full_data["User Defined 2"] = full_data["UDF2"]
+    full_data["User Defined 5"] = "PO - Split Account"
+
+    cols = [
+        "Account Type Name",
+        "Account ID",
+        "Account Name",
+        "Currency Name",
+        "Client ID",
+        "Date Opened",
+        "Inception Date",
+        "Rep Code ID",
+        "Custodian Name",
+        "Advisory Scope Name",
+        "User Defined 1",
+        "User Defined 2",
+        "User Defined 5",
+    ]
+    full_data = full_data[cols]
+
     return full_data
+
+
+def create_fco_loader(
+    accounts: pd.DataFrame, ownership: pd.DataFrame
+) -> pd.DataFrame:
+    fco_table = ownership.merge(
+        accounts,
+        left_on="Owned",
+        right_on="Client ID",
+        how="inner",
+    )
+    fco_table["Class Series ID"] = [
+        f"po_classseries_{account_id}"
+        for account_id in fco_table["Account ID"]
+    ]
+    fco_table["Client Account ID"] = [
+        f"po_split_{account_id}_{owner}"
+        for owner, account_id in zip(
+            fco_table["Owner"], fco_table["Account ID"]
+        )
+    ]
+    fco_table["Date"] = fco_table["Date"]
+    fco_table["Percent"] = fco_table["Percentage"]
+    cols = [
+        "Class Series ID",
+        "Client Account ID",
+        "Date",
+        "Percent",
+    ]
+    fco_table = fco_table[cols]
+    return fco_table
+
+
+# endregion
+
+
+# region Main Partial Ownership function
+def create_partial_ownership_loaders(
+    config: PO_SMA_Config,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    accounts = pd.read_csv(config.account_file)
+    fco_table = get_ownership_file(config.ownership_file)
+
+    splits = create_split_accounts_file(
+        accounts,
+        fco_table,
+    )
+
+    if config.first_transaction_date is not None:
+        fco_table, _ = filter_ownership_by_date(
+            fco_table,
+            config.first_transaction_date,
+        )
+
+    fco_loader = create_fco_loader(accounts, fco_table)
+
+    return splits, fco_loader
+
+
+# endregion
+
+
+# region Main script
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: po-sma <config_file.toml>")
+        sys.exit(1)
+
+    config_file_path = sys.argv[1]
+    # Read config file
+    config_file = Path(config_file_path)
+    config = Binder(PO_SMA_Config).parse_toml(config_file)
+
+    # Create main structure files
+    structure = create_structure_files(config)
+    structure.write_to_folder(config.output_folder)
+
+    # Create Partial Ownership files
+    if config.type in ("po", "both"):
+        split_account_loader, fco_loader = create_partial_ownership_loaders(
+            config
+        )
+        split_account_loader.to_csv(
+            Path(config.output_folder)
+            / "importers"
+            / "SplitAccountCreate.csv",
+            index=False,
+        )
+        fco_loader.to_csv(
+            Path(config.output_folder)
+            / "importers"
+            / "SplitFundClientOwnership.csv",
+            index=False,
+        )
+
+
+if __name__ == "__main__":
+    main()
+# endregion
