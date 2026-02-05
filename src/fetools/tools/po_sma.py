@@ -2,9 +2,8 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 from pathlib import Path
-from dataclass_binder import Binder
-from tqdm import tqdm
 import os
+from dataclass_binder import Binder
 
 
 """
@@ -302,32 +301,28 @@ class Structure:
         os.makedirs(os.path.join(folder_path, "funds"), exist_ok=True)
         os.makedirs(os.path.join(folder_path, "classseries"), exist_ok=True)
         os.makedirs(os.path.join(folder_path, "importers"), exist_ok=True)
-        self.funds.to_csv(Path(folder_path) / "funds" / "funds.csv", index=False)
+        self.funds.to_csv(f"{folder_path}/funds/funds.csv", index=False)
         self.classseries.to_csv(
-            Path(folder_path) / "classseries" / "classseries.csv", index=False
+            f"{folder_path}/classseries/classseries.csv", index=False
         )
         self.instruments.to_csv(
-            Path(folder_path) / "importers" / "instruments.csv", index=False
+            f"{folder_path}/importers/Instruments.csv", index=False
         )
         self.account_create.to_csv(
-            Path(folder_path) / "importers" / "accounts_main_create.csv", index=False
+            f"{folder_path}/importers/MainAccountCreate.csv", index=False
         )
         self.account_remap.to_csv(
-            Path(folder_path) / "importers" / "account_remap.csv", index=False
+            f"{folder_path}/importers/AccountRemap.csv", index=False
         )
         if self.main_fund_client_ownership is not None:
             self.main_fund_client_ownership.to_csv(
-                Path(folder_path) / "importers" / "fund_client_ownership_table.csv",
+                f"{folder_path}/importers/MainFundClientOwnership.csv",
                 index=False,
             )
 
 
 def create_structure_files(config: PO_SMA_Config) -> Structure:
     df = pd.read_csv(config.account_file)
-    # Ensure consistency in SMA flag column name
-    if "IsSMA" in df.columns:
-        df = df.rename(columns={"IsSMA": "Is SMA"})
-
     # TODO: Add logic to filter account file based on ownership data if needed
     if config.type == "sma":
         structure = Structure(df, type="sma")
@@ -391,8 +386,7 @@ def add_zero_entries(df: pd.DataFrame) -> pd.DataFrame:
 
     new_rows = []
     # Process each 'Owned' entity individually
-    print("Processing zero entries...")
-    for owned_entity, group in tqdm(df.groupby("Owned"), desc="Zero Entries"):
+    for owned_entity, group in df.groupby("Owned"):
         # Get unique dates for this specific entity in order
         dates = sorted(group["Date"].unique())
 
@@ -429,8 +423,7 @@ def resolve_effective_ownership(df: pd.DataFrame) -> pd.DataFrame:
     all_snapshots = []
     last_snapshot = pd.DataFrame()  # To keep track of the previous state
 
-    print("Resolving effective ownership...")
-    for current_date in tqdm(timeline, desc="Ownership Timeline"):
+    for current_date in timeline:
         as_of_now = df[df["Date"] <= current_date]
 
         # 1. Get current direct state (Overwrite logic)
@@ -499,7 +492,7 @@ def _calculate_full_path_expansion(state_df: pd.DataFrame) -> pd.DataFrame:
     M_current = M1.copy()
 
     # We loop up to the number of entities to ensure we catch deep chains
-    for _ in tqdm(range(n), desc="Expanding Paths", leave=False):
+    for _ in range(n):
         # Matrix multiplication finds the next level of indirect ownership
         # M_next = (Owners of Middlemen) * (Middlemen's ownership of targets)
         M_next = M_current @ M1

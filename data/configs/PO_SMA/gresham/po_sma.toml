@@ -1,6 +1,6 @@
-type = "both"      # Can be "po", "sma", or "both"
-first-transaction-date = "2020-12-31"
-output-folder = "data/outputs/PO_SMA/gresham/"
-account-file = "data/inputs/PO_SMA/gresham/Account.csv"
-ownership-file = "data/inputs/PO_SMA/gresham/LEOwnership.csv"
+type = "both"                                                    # Can be "po", "sma", or "both"
+first-transaction-date = "2020-12-31"                            # Format: "YYYY-MM-DD"
+output-folder = "data/outputs/PO_SMA/gresham/"                   # Directory for output files
+account-file = "data/inputs/PO_SMA/gresham/Account.csv"          # Path to account data CSV
+ownership-file = "data/inputs/PO_SMA/gresham/LEOwnership.csv"    # Path to ownership data CSV
 
