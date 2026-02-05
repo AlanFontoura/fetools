@@ -3,6 +3,7 @@ import numpy as np
 from dataclasses import dataclass
 from pathlib import Path
 import os
+import sys
 from dataclass_binder import Binder
 
 
@@ -683,7 +684,12 @@ def create_partial_ownership_loaders(
 
 
 # region Main script
-def main(config_file_path: str):
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: po-sma <config_file.toml>")
+        sys.exit(1)
+
+    config_file_path = sys.argv[1]
     # Read config file
     config_file = Path(config_file_path)
     config = Binder(PO_SMA_Config).parse_toml(config_file)
@@ -712,5 +718,5 @@ def main(config_file_path: str):
 
 
 if __name__ == "__main__":
-    main("data/configs/PO_SMA/gresham/po_sma.toml")
+    main()
 # endregion
