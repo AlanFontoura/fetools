@@ -642,8 +642,14 @@ def create_fco_loader(
         how="inner",
     )
     fco_table["Class Series ID"] = [
-        f"po_classseries_{account_id}"
-        for account_id in fco_table["Account ID"]
+        (
+            f"sma_classseries_{account_id}"
+            if is_sma
+            else f"po_classseries_{account_id}"
+        )
+        for account_id, is_sma in zip(
+            fco_table["Account ID"], fco_table["Is SMA"]
+        )
     ]
     fco_table["Client Account ID"] = [
         f"po_split_{account_id}_{owner}"
