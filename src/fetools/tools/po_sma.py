@@ -90,6 +90,7 @@ class Structure:
 
     @property
     def classseries(self) -> pd.DataFrame:
+        # TODO: Check how to load 'Collapse when scaling' and 'Look through enabled' fields
         if self._classseries is None:
             classseries = self.df.copy()
             classseries["Firm Provided Key"] = [
