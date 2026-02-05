@@ -106,11 +106,19 @@ class Structure:
                 for account_id in classseries["Account ID"]
             ]
             classseries["Weight"] = 1
+            classseries["Is Look Through Enabled"] = (
+                False if self.type == "sma" else True
+            )
+            classseries["Collapse When Scaling to Client Position"] = (
+                True if self.type == "sma" else False
+            )
             cols = [
                 "Firm Provided Key",
                 "Name",
                 "Fund Firm Provided Key",
                 "Weight",
+                "Is Look Through Enabled",
+                "Collapse When Scaling to Client Position",
             ]
             classseries = classseries[cols]
             self._classseries = classseries
