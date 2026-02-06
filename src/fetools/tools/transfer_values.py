@@ -265,9 +265,8 @@ class TransferValueDownloader(BaseMain):
             LOG.warning("No transfer transactions found. Exiting.")
             return
         instruments = self.get_instruments(trx)
-        instruments.to_csv("instruments.csv", index=False)
-        # market_prices = self.get_market_prices(trx)
-        # fx_rates = self.get_fx_rates()
+        market_prices = self.get_market_prices(trx)
+        fx_rates = self.get_fx_rates()
 
 
 class TransferValuesWizard:
