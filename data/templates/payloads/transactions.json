@@ -1,12 +1,7 @@
 {
     "options": {
         "single_result": true,
-        "date_range": {
-            "value": "custom",
-            "label": "Custom",
-            "start_date": null,
-            "end_date": null
-        },
+        "date_range": null,
         "order_by": [
             "r-trade-date"
         ]
