@@ -124,6 +124,50 @@ class TransferValueDownloader(BaseMain):
 
     # endregion
 
+    # region Instrument downloaders
+    def get_instrument_batch(self, instrument_id: str) -> pd.DataFrame:
+        instrument_call = self.api.data
+        instrument_call._store["base_url"] += f"instruments/{instrument_id}/"
+        response = instrument_call.get(
+            extra=f"fields=firm_provided_key,name,currency,unit_of_measure"
+        )
+        response["currency"] = self.clean_url(response["currency"])
+        # res = pd.DataFrame(response)
+        return response
+
+    def get_instruments(self, transactions: pd.DataFrame) -> pd.DataFrame:
+        instrument_ids = transactions["Security ID"].dropna().unique()
+        if len(instrument_ids) == 0:
+            return pd.DataFrame(
+                columns=[
+                    "firm_provided_key",
+                    "name",
+                    "currency",
+                    "unit_of_measure",
+                ]
+            )
+        with Pool() as pool:
+            results = list(
+                tqdm(
+                    pool.imap(self.get_instrument_batch, instrument_ids),
+                    total=len(instrument_ids),
+                    desc=f"Fetching details for {len(instrument_ids)} instruments",
+                )
+            )
+        # instruments = pd.DataFrame(pd.concat(results, ignore_index=True))
+        instruments = pd.DataFrame(results)
+        instruments = instruments.rename(
+            columns={
+                "firm_provided_key": "Security ID",
+                "name": "Security Name",
+                "currency": "Currency",
+                "unit_of_measure": "Unit of Measure",
+            }
+        )
+        return instruments
+
+    # endregion
+
     # region Market Price downloaders
     def fill_missing_dates(self, df: pd.DataFrame) -> pd.DataFrame:
         dates = pd.date_range(start=df["date"].min(), end=df["date"].max())
@@ -142,16 +186,13 @@ class TransferValueDownloader(BaseMain):
         )
         res = pd.DataFrame(response["results"])
         res = res[res["source"] == "C"].drop(columns=["source"])
+        res = res.rename(columns={"instrument_key": "Security ID"})
         return self.fill_missing_dates(res)
 
     def get_market_prices(self, transactions: pd.DataFrame) -> pd.DataFrame:
-        instruments = [
-            instrument
-            for instrument in transactions["Security ID"].unique()
-            if instrument is not None
-        ]
+        instruments = transactions["Security ID"].dropna().unique()
         if not instruments:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["Security ID", "date", "close"])
         if len(instruments) == 1:
             prices = self.get_market_price_history(instruments[0])
             return prices
@@ -221,13 +262,12 @@ class TransferValueDownloader(BaseMain):
     def after_login(self):
         trx = self.get_transactions()
         if trx.empty:
-            print(
-                "No valid transfer transactions found for the given criteria."
-            )
+            LOG.warning("No transfer transactions found. Exiting.")
             return
-        market_prices = self.get_market_prices(trx)
-        fx_rates = self.get_fx_rates()
-        fx_rates.to_csv("fx_rates.csv", index=False)
+        instruments = self.get_instruments(trx)
+        instruments.to_csv("instruments.csv", index=False)
+        # market_prices = self.get_market_prices(trx)
+        # fx_rates = self.get_fx_rates()
 
 
 class TransferValuesWizard:
