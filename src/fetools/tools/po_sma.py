@@ -191,17 +191,21 @@ class Structure:
             account_create = self.df.copy()
             account_create["Account Type Name"] = "Other"
             account_create["Account ID"] = [
-                f"{self.type}_account_{account_id}"
+                (
+                    f"sma_account_{account_id}"
+                    if self.type == "sma"
+                    else f"po_direct_{account_id}"
+                )
                 for account_id in account_create["Account ID"]
             ]
             account_create["Account Name"] = (
                 [
-                    f"{account_name[:84]} - SMA"
+                    f"{account_name[:94]} - SMA"
                     for account_name in account_create["Account Name"]
                 ]
                 if self.type == "sma"
                 else [
-                    f"{account_name[:84]} - PO Account"
+                    f"{account_name[:79]} - PO Direct Account"
                     for account_name in account_create["Account Name"]
                 ]
             )
@@ -217,7 +221,7 @@ class Structure:
             account_create["User Defined 1"] = account_create["UDF1"]
             account_create["User Defined 2"] = account_create["UDF2"]
             account_create["User Defined 5"] = (
-                "Partially Owned" if self.type == "po" else None
+                "PO - Direct Account" if self.type == "po" else None
             )
             cols = [
                 "Account Type Name",
@@ -261,7 +265,11 @@ class Structure:
                 for account_id in fund_client_ownership["Account ID"]
             ]
             fund_client_ownership["Client Account ID"] = [
-                f"{self.type}_account_{account_id}"
+                (
+                    f"sma_account_{account_id}"
+                    if self.type == "sma"
+                    else f"po_direct_{account_id}"
+                )
                 for account_id in fund_client_ownership["Account ID"]
             ]
             fund_client_ownership["Date"] = fund_client_ownership[
