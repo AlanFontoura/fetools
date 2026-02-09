@@ -4,13 +4,16 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "lts"
     }
   },
-  "postCreateCommand": "python -m venv .venv && . .venv/bin/activate && pip install --upgrade pip && pip install -e .[dev] && mkdir -p ~/.aws && touch ~/.aws/credentials && npm install -g @google/gemini-cli",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   "remoteEnv": {
-    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}",
+    // Directs all terminals and tools to your workspace-local creds file
+    "AWS_SHARED_CREDENTIALS_FILE": "${containerWorkspaceFolder}/.aws/credentials"
   },
   "customizations": {
     "vscode": {
@@ -18,7 +21,6 @@
         "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
         "python.terminal.activateEnvironment": true,
         "python.terminal.activateEnvInCurrentTerminal": true,
-        "python.formatting.provider": "black",
         "[python]": {
           "editor.defaultFormatter": "ms-python.black-formatter",
           "editor.formatOnSave": true
@@ -28,7 +30,10 @@
         "terminal.integrated.profiles.linux": {
           "bash": {
             "path": "bash",
-            "args": ["-c", "source ${workspaceFolder}/.venv/bin/activate && exec bash"]
+            "args": [
+              "-c",
+              "source ${workspaceFolder}/.venv/bin/activate && exec bash"
+            ]
           }
         }
       },
@@ -41,7 +46,8 @@
         "github.vscode-pull-request-github",
         "tamasfe.even-better-toml",
         "mechatroner.rainbow-csv",
-        "google.gemini-code-assist"
+        "google.gemini-code-assist",
+        "amazonwebservices.aws-toolkit-vscode"
       ]
     }
   },

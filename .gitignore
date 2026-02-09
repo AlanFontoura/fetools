@@ -20,6 +20,8 @@ htmlcov/
 .vscode/launch.json
 *.code-workspace
 .github/copilot-instructions.md
+.aws/
+.env
 
 # Data folders - ignore contents but keep folder structure
 data/inputs/*
