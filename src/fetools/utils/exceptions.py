@@ -8,3 +8,7 @@ class NoResponseError(Exception):
 
 class InputValidationError(Exception):
     pass
+
+
+class MissingConfigError(Exception):
+    pass
