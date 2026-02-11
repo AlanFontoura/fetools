@@ -2,12 +2,11 @@ import pandas as pd
 from dataclass_binder import Binder
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from fetools.utils.exceptions import MissingConfigError
-from pprint import pprint
 
 
-# region Dataclasses for config and config reader
+# region Dataclasses for config
 @dataclass(frozen=True)
 class SMAConfig:
     recon: bool = False
@@ -32,14 +31,6 @@ class Config:
     region: str
     sma: SMAConfig = SMAConfig()
     partial_ownership: PartialOwnershipConfig = PartialOwnershipConfig()
-
-
-def read_config(config_path: str) -> Any:
-    try:
-        config = Binder(Config).parse_toml(config_path)
-    except TypeError as e:
-        raise MissingConfigError(e)
-    return config
 
 
 # endregion
@@ -213,6 +204,9 @@ def po_direct_recon(
 
 
 # endregion
+
+
+# region Helper functions
 def savefile(df: pd.DataFrame, client: str, filename: str):
     save_path = Path(
         "data",
@@ -226,15 +220,24 @@ def savefile(df: pd.DataFrame, client: str, filename: str):
     print(f"Saved file: {save_path}")
 
 
+def read_config(config_path: str) -> Any:
+    try:
+        config = Binder(Config).parse_toml(config_path)
+    except TypeError as e:
+        raise MissingConfigError(e)
+    return config
+
+
+# endregion
+
+
 def main():
     try:
         config = read_config("data/configs/PO_SMA/gresham/po_sma_recon.toml")
     except MissingConfigError as e:
         print(f"Missing configuration error: {e}")
         exit(1)
-    pprint(config)
-    # tracking_data = get_tracking_data(config)
-    tracking_data = pd.read_parquet("tracking_data.parquet")
+    tracking_data = get_tracking_data(config)
     if config.sma.recon:
         sma_data = sma_recon(tracking_data, config.sma)
         savefile(sma_data, config.client, "sma_recon.csv")
