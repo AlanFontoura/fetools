@@ -214,8 +214,9 @@ def savefile(df: pd.DataFrame, client: str, filename: str):
         "PO_SMA",
         client,
         "Recon",
-        filename,
     )
+    save_path.mkdir(parents=True, exist_ok=True)
+    save_path = Path(save_path, filename)
     df.to_csv(save_path, index=False)
     print(f"Saved file: {save_path}")
 
@@ -237,7 +238,8 @@ def main():
     except MissingConfigError as e:
         print(f"Missing configuration error: {e}")
         exit(1)
-    tracking_data = get_tracking_data(config)
+    # tracking_data = get_tracking_data(config)
+    tracking_data = pd.read_parquet("tracking_data.parquet")
     if config.sma.recon:
         sma_data = sma_recon(tracking_data, config.sma)
         savefile(sma_data, config.client, "sma_recon.csv")
