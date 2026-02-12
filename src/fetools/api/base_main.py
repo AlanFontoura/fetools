@@ -1,6 +1,7 @@
 import sys
 import logging
 import argparse
+from math import ceil
 import getpass
 import json
 import requests
@@ -247,7 +248,9 @@ class ReportGeneric(BaseMain):
         else:
             raise NoResponseError
 
-    def get_large_data(self, data_type, batch_size=1000):
+    def get_large_data(
+        self, data_type, batch_size=1000, fields=None
+    ) -> pd.DataFrame:
         assert self.api is not None, "API not initialized"
         api_call = self.api.data
         api_call._store["base_url"] += f"{data_type}/"
@@ -258,11 +261,15 @@ class ReportGeneric(BaseMain):
         except:
             raise NoResponseError("Request returned no result!")
 
-        total_batches = (total_entries // batch_size) + 1
+        total_batches = ceil(total_entries / batch_size)
         extras = [
             f"limit={batch_size}&offset={i * batch_size}"
             for i in range(total_batches)
         ]
+        if fields:
+            extras = [
+                f"{extra}&fields={','.join(fields)}" for extra in extras
+            ]
 
         worker = partial(self.get_data, data_type)
 

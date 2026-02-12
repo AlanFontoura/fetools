@@ -1,0 +1,24 @@
+{
+    "options": {
+        "drilldown_dimension": "toplevel",
+        "time_series": "monthly",
+        "treatment_of_fx": "FXincluded",
+        "return_type": "n",
+        "metric_type": "$",
+        "single_result": true,
+        "date_range": {
+            "value": "since_inception",
+            "label": "Since Inception"
+        }
+    },
+    "control": {
+        "selected_entities": null
+    },
+    "settings": {
+        "currency": null,
+        "date": {
+            "date": null,
+            "value": "specificDate"
+        }
+    }
+}
