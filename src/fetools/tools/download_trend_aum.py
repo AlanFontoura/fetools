@@ -198,7 +198,9 @@ class DownloadTrendAUM(ReportGeneric):
             pairs.append(pair)
         return pairs
 
-    def get_all_trend_aum(self, pairs: list[TrendAUMPair]) -> pd.DataFrame:
+    def get_all_trend_aum(
+        self, pairs: list[TrendAUMPair]
+    ) -> pd.DataFrame | Any:
         with Pool() as pool:
             all_trend_aum = list(
                 tqdm(
