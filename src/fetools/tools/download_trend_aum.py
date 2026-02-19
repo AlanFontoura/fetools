@@ -210,9 +210,9 @@ class DownloadTrendAUM(ReportGeneric):
         return pd.concat(all_trend_aum, ignore_index=True)
 
     def after_login(self):
-        # accounts = self.get_accounts()
-        # accounts.to_csv("accounts.csv")
-        accounts = pd.read_csv("accounts.csv")
+        accounts = self.get_accounts()
+        accounts.to_csv("accounts.csv")
+        # accounts = pd.read_csv("accounts.csv")
         filtered_accounts = self.filter_accounts(accounts)
         pairs = self.convert_df_to_configs(filtered_accounts)
         all_trend_aum_df = self.get_all_trend_aum(pairs)
