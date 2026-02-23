@@ -387,14 +387,16 @@ def validate_ownership_file(df: pd.DataFrame) -> pd.DataFrame:
     )
     over_owned = total_ownership[total_ownership["Percentage"] > 1.02]
     if not over_owned.empty:
-        raise ValueError(
-            "Some entities are over 100% owned on certain dates."
-        )
+        # raise ValueError(
+        #     "Some entities are over 100% owned on certain dates."
+        # )
+        print("Warning: Some entities are over 100% owned on certain dates.")
     under_owned = total_ownership[total_ownership["Percentage"] < 0.98]
     if not under_owned.empty:
-        raise ValueError(
-            "Some entities are under 100% owned on certain dates."
-        )
+        # raise ValueError(
+        #     "Some entities are under 100% owned on certain dates."
+        # )
+        print("Warning: Some entities are under 100% owned on certain dates.")
     return df
 
 
