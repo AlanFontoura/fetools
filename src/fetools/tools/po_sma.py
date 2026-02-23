@@ -437,9 +437,12 @@ def extend_ownership_table(df: pd.DataFrame) -> pd.DataFrame:
         current_snapshot = get_current_snapshot(df, date)
         ooo_snapshot = multi_level_ooo(current_snapshot)
         extended_ownership.append(ooo_snapshot)
-    extend_ownership_table = pd.concat(
-        extended_ownership, ignore_index=True
-    ).drop_duplicates()
+    extend_ownership_table = (
+        pd.concat(extended_ownership, ignore_index=True)
+        .drop_duplicates()
+        .sort_values(by=["Date", "Owned", "Owner"])
+        .reset_index(drop=True)
+    )
     return extend_ownership_table
 
 
