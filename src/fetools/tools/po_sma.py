@@ -399,25 +399,16 @@ def validate_ownership_file(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_zero_entries(df: pd.DataFrame) -> pd.DataFrame:
-    # Ensure dates are datetime objects
-    df["Date"] = pd.to_datetime(df["Date"])
-
     new_rows = []
-    # Process each 'Owned' entity individually
     for owned_entity, group in df.groupby("Owned"):
-        # Get unique dates for this specific entity in order
         dates = sorted(group["Date"].unique())
 
         for i in range(1, len(dates)):
-            prev_date = dates[i - 1]
-            curr_date = dates[i]
+            prev_date, curr_date = dates[i - 1], dates[i]
 
-            # Owners present in the previous snapshot
-            prev_owners = set(group[group["Date"] == prev_date]["Owner"])
-            # Owners present in the current snapshot
-            curr_owners = set(group[group["Date"] == curr_date]["Owner"])
+            prev_owners = set(group.loc[group["Date"] == prev_date, "Owner"])
+            curr_owners = set(group.loc[group["Date"] == curr_date, "Owner"])
 
-            # Find owners who "disappeared"
             disappeared = prev_owners - curr_owners
 
             for owner in disappeared:
@@ -429,8 +420,9 @@ def add_zero_entries(df: pd.DataFrame) -> pd.DataFrame:
                         "Percentage": 0.0,
                     }
                 )
-    new_df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-    new_df = new_df.sort_values(by=["Owned", "Date", "Owner"]).reset_index(
+    zero_entries_df = pd.DataFrame(new_rows)
+    new_df = pd.concat([df, zero_entries_df], ignore_index=True)
+    new_df = new_df.sort_values(by=["Date", "Owner", "Owned"]).reset_index(
         drop=True
     )
     return new_df
