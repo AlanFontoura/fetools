@@ -278,5 +278,5 @@ class ReportGeneric(BaseMain):
                 tqdm(pool.imap(worker, extras), total=total_batches)
             )
 
-        final_df = pd.concat(results, ignore_index=True)
+        final_df = pd.DataFrame(pd.concat(results, ignore_index=True))
         return final_df
