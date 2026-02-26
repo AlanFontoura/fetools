@@ -976,6 +976,16 @@ class ComplianceReport(ReportGeneric):
 
     # endregion Generate excel file
 
+    def before_login(self):
+        print(
+            "Before moving forward, make sure you have exported the client's guidelines at"
+        )
+        print(
+            "http://rundeck.d1g1twealth.com:4440/project/FE/job/show/437a211c-a603-4f92-a2fb-efff3a5c13cb"
+        )
+        input("Press Enter to continue...")
+        print("Initializing API connection...")
+
     def after_login(self) -> None:
         entity_ids = self.guidelines["entity_id"].unique().tolist()
         self.get_all_mandates(entity_ids)
