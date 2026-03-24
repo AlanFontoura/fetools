@@ -23,6 +23,8 @@ htmlcov/
 .env
 
 # Data folders - ignore contents but keep folder structure
+data/configs/*
+!data/configs/.gitkeep
 data/inputs/*
 !data/inputs/.gitkeep
 data/outputs/*
