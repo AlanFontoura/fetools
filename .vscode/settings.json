@@ -1,0 +1,13 @@
+{
+    "python.defaultInterpreterPath": "/workspaces/fetools/.venv/bin/python",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.profiles.linux": {
+        "bash": {
+            "path": "bash",
+            "args": [
+                "-c",
+                "source .venv/bin/activate && exec bash"
+            ]
+        }
+    }
+}

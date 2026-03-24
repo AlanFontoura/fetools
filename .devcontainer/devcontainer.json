@@ -52,5 +52,5 @@
     }
   },
   "forwardPorts": [8000, 8888],
-  "postStartCommand": ". .venv/bin/activate"
+  "postStartCommand": "bash .devcontainer/setup.sh"
 }

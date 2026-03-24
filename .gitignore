@@ -16,7 +16,6 @@ htmlcov/
 .coverage.*
 
 # Dev container / editor
-.vscode/settings.json
 .vscode/launch.json
 *.code-workspace
 .github/copilot-instructions.md
@@ -28,8 +27,6 @@ data/inputs/*
 !data/inputs/.gitkeep
 data/outputs/*
 !data/outputs/.gitkeep
-data/configs/*
-!data/configs/.gitkeep
 
 # OS generated
 .DS_Store
