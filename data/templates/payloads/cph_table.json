@@ -1,0 +1,42 @@
+{
+    "options": {
+        "single_result": true,
+        "include_web_metadata": true
+    },
+    "control": {
+        "selected_entities": {}
+    },
+    "settings": {
+        "currency": null,
+        "date": {
+            "date": null,
+            "value": "specificDate"
+        }
+    },
+    "groups": {
+        "selected": [
+            {
+                "grouping_criterion": null,
+                "order": 0
+            }
+        ]
+    },
+    "metrics": {
+        "selected": [
+            {
+                "order": 0,
+                "slug": "s-instrument-name",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Security Name"
+            },
+            {
+                "order": 1,
+                "slug": "q-spot-holding-values-value",
+                "contribution_dimension": null,
+                "contribution_dimension_2": null,
+                "column_title": "Market Value"
+            }
+        ]
+    }
+}

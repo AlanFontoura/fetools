@@ -223,9 +223,16 @@ class ReportGeneric(BaseMain):
     def __init__(self):
         BaseMain.__init__(self)
 
-    def get_calculation(self, calc_type: str, payload: dict) -> pd.DataFrame:
+    def get_calculation(
+        self, calc_type: str, payload: dict, v2: bool = False
+    ) -> pd.DataFrame:
         assert self.api is not None, "API not initialized"
         calc_call = self.api.calc(calc_type)
+        if v2:
+            calc_call._store["base_url"] = calc_call._store[
+                "base_url"
+            ].replace("api/v1", "api/v2")
+            calc_call._store["options"]["API_PREFIX"] = "api/v2"
         response = calc_call.post(data=payload)
         if not response:
             raise NoResponseError("Request returned no result!")
@@ -234,7 +241,7 @@ class ReportGeneric(BaseMain):
         return result
 
     def get_data(
-        self, data_type, extra_params, to_frame=True
+        self, data_type, extra_params=None, to_frame=True
     ) -> Union[dict, pd.DataFrame]:
         assert self.api is not None, "API not initialized"
         api_call = self.api.data
